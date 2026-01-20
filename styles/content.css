@@ -1,0 +1,91 @@
+/**
+ * House of Fun Helper - Content Styles
+ * Styles injected into House of Fun pages
+ */
+
+/* HOF Helper UI Elements */
+.hof-helper-container {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  z-index: 999999;
+}
+
+/* Notification badge */
+.hof-helper-badge {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  z-index: 999999;
+  animation: hof-slide-in 0.3s ease-out;
+}
+
+/* Slide in animation */
+@keyframes hof-slide-in {
+  from {
+    transform: translateX(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Fade out animation */
+@keyframes hof-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Helper floating button */
+.hof-helper-fab {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(245, 87, 108, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  z-index: 999999;
+}
+
+.hof-helper-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(245, 87, 108, 0.5);
+}
+
+.hof-helper-fab:active {
+  transform: scale(0.95);
+}
+
+/* Tooltip styles */
+.hof-helper-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1000000;
+}

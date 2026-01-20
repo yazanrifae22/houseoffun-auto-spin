@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "House of Fun Helper",
+  "version": "2.0.0",
+  "description": "A helpful extension for House of Fun players",
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.houseoffun.com/*"],
+      "js": ["content/content.js"],
+      "run_at": "document_end"
+    }
+  ],
+
+  "permissions": ["activeTab", "storage", "webRequest", "scripting"],
+
+  "host_permissions": ["*://*.houseoffun.com/*", "*://*.playtika.com/*"]
+}

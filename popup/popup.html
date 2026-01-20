@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>House of Fun Helper</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <!-- Header -->
+      <header class="popup-header">
+        <div class="logo-container">
+          <img src="../icons/icon48.png" alt="Logo" class="logo" />
+          <div class="title-group">
+            <h1 class="title">House of Fun</h1>
+            <span class="subtitle">Helper Extension</span>
+          </div>
+        </div>
+        <span class="version" id="version">v1.0.0</span>
+      </header>
+
+      <!-- Status Section -->
+      <section class="status-section">
+        <div class="status-indicator" id="statusIndicator">
+          <span class="status-dot"></span>
+          <span class="status-text">Ready</span>
+        </div>
+      </section>
+
+      <!-- Settings Section -->
+      <section class="settings-section">
+        <h2 class="section-title">Settings</h2>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Enable Extension</span>
+            <span class="setting-description">Turn the extension on or off</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="enabledToggle" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Notifications</span>
+            <span class="setting-description">Show helpful notifications</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notificationsToggle" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <section class="actions-section">
+        <button class="btn btn-primary" id="openGameBtn">
+          <svg
+            class="btn-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          Open House of Fun
+        </button>
+      </section>
+
+      <!-- Footer -->
+      <footer class="popup-footer">
+        <span class="footer-text">Made with ❤️ for HOF players</span>
+      </footer>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
