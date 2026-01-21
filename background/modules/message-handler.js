@@ -58,11 +58,11 @@ const MessageHandler = (() => {
           break
 
         case 'GET_HISTORY':
-          await handleGetHistory(sendResponse)
+          await handleGetHistory(message, sendResponse)
           break
 
         case 'CLEAR_HISTORY':
-          await handleClearHistory(sendResponse)
+          await handleClearHistory(message, sendResponse)
           break
 
         case 'CLEAR_REQUESTS':
@@ -71,6 +71,39 @@ const MessageHandler = (() => {
 
         case 'CLEAR_DOG_REQUESTS':
           await handleClearDogRequests(sendResponse)
+          break
+
+        // Debug handlers
+        case 'DEBUG_START_SESSION':
+          handleDebugStartSession(sendResponse)
+          break
+
+        case 'DEBUG_STOP_SESSION':
+          handleDebugStopSession(sendResponse)
+          break
+
+        case 'DEBUG_GET_STATUS':
+          handleDebugGetStatus(sendResponse)
+          break
+
+        case 'DEBUG_EXPORT_SESSION':
+          handleDebugExportSession(sendResponse)
+          break
+
+        case 'DEBUG_CLEAR_SESSION':
+          handleDebugClearSession(sendResponse)
+          break
+
+        case 'DEBUG_DOM_MUTATION':
+          handleDebugDomMutation(message, sendResponse)
+          break
+
+        case 'DEBUG_CONSOLE':
+          handleDebugConsole(message, sendResponse)
+          break
+
+        case 'DEBUG_UI_EVENT':
+          handleDebugUiEvent(message, sendResponse)
           break
 
         default:
@@ -194,6 +227,108 @@ const MessageHandler = (() => {
    */
   async function handleClearDogRequests(sendResponse) {
     await self.RequestCapture.clearCapturedDogRequest()
+    sendResponse({ success: true })
+  }
+
+  /**
+   * Get history
+   */
+  async function handleGetHistory(message, sendResponse) {
+    const historyType = message.historyType || 'main'
+    const history = await self.History.getHistory(historyType)
+    sendResponse({ success: true, history })
+  }
+
+  /**
+   * Clear history
+   */
+  async function handleClearHistory(message, sendResponse) {
+    const historyType = message.historyType || 'main'
+    await self.History.clearHistory(historyType)
+    sendResponse({ success: true })
+  }
+
+  /**
+   * Clear captured main requests
+   */
+  async function handleClearRequests(sendResponse) {
+    await self.RequestCapture.clearCapturedRequest()
+    sendResponse({ success: true })
+  }
+
+  /**
+   * Debug - Start session
+   */
+  function handleDebugStartSession(sendResponse) {
+    const result = self.DebugRecorder.startSession()
+    sendResponse(result)
+  }
+
+  /**
+   * Debug - Stop session
+   */
+  function handleDebugStopSession(sendResponse) {
+    const result = self.DebugRecorder.stopSession()
+    sendResponse(result)
+  }
+
+  /**
+   * Debug - Get status
+   */
+  function handleDebugGetStatus(sendResponse) {
+    const info = self.DebugRecorder.getSessionInfo()
+    const stats = self.DebugRecorder.getStats()
+    sendResponse({
+      success: true,
+      ...info,
+      stats: stats,
+    })
+  }
+
+  /**
+   * Debug - Export session
+   */
+  function handleDebugExportSession(sendResponse) {
+    const sessionData = self.DebugRecorder.exportSession()
+    sendResponse({
+      success: true,
+      data: sessionData,
+    })
+  }
+
+  /**
+   * Debug - Clear session
+   */
+  function handleDebugClearSession(sendResponse) {
+    self.DebugRecorder.clearSession()
+    sendResponse({ success: true })
+  }
+
+  /**
+   * Debug - DOM mutation
+   */
+  function handleDebugDomMutation(message, sendResponse) {
+    self.DebugRecorder.recordDomMutation(message.data)
+    sendResponse({ success: true })
+  }
+
+  /**
+   * Debug - Console log
+   */
+  function handleDebugConsole(message, sendResponse) {
+    self.DebugRecorder.recordConsoleLog(
+      message.data.level,
+      message.data.message,
+      message.data.stack,
+    )
+    sendResponse({ success: true })
+  }
+
+  /**
+   * Debug - UI event
+   */
+  function handleDebugUiEvent(message, sendResponse) {
+    self.DebugRecorder.recordUiEvent(message.eventType, message.data)
     sendResponse({ success: true })
   }
 

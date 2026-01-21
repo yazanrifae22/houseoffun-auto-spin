@@ -8,20 +8,33 @@ const History = (() => {
 
   /**
    * Save a completed session to history
+   * @param {Object} stats - Session statistics
+   * @param {string} type - 'main' or 'dog'
    */
-  async function saveSession(stats) {
+  async function saveSession(stats, type = 'main') {
+    // Calculate total profit including bonus wins
+    const baseProfit = stats.currentBalance - stats.startBalance
+    const freeSpinWins = stats.freeSpinWins || 0
+    const starSpinWins = stats.starSpinWins || 0
+    const totalProfit = baseProfit + freeSpinWins + starSpinWins
+
     const session = {
       date: new Date().toISOString(),
       spins: stats.totalSpins,
       totalWins: stats.totalWins,
       startBalance: stats.startBalance,
       endBalance: stats.currentBalance,
-      profit: stats.currentBalance - stats.startBalance,
+      profit: totalProfit, // Total profit including all bonuses
+      baseProfit: baseProfit, // Base profit without bonuses
+      freeSpinWins: freeSpinWins,
+      starSpinWins: starSpinWins,
       duration: Date.now() - stats.startTime,
+      type: type, // 'main' or 'dog'
     }
 
-    const data = await chrome.storage.local.get(['hof_history'])
-    const history = data.hof_history || []
+    const storageKey = type === 'dog' ? 'hof_dog_history' : 'hof_history'
+    const data = await chrome.storage.local.get([storageKey])
+    const history = data[storageKey] || []
 
     // Add to beginning
     history.unshift(session)
@@ -31,24 +44,28 @@ const History = (() => {
       history.length = MAX_HISTORY_ITEMS
     }
 
-    await chrome.storage.local.set({ hof_history: history })
-    console.log('[HOF] Session saved to history', session)
+    await chrome.storage.local.set({ [storageKey]: history })
+    console.log(`[HOF] ${type.toUpperCase()} session saved to history`, session)
   }
 
   /**
    * Get all history
+   * @param {string} type - 'main' or 'dog'
    */
-  async function getHistory() {
-    const data = await chrome.storage.local.get(['hof_history'])
-    return data.hof_history || []
+  async function getHistory(type = 'main') {
+    const storageKey = type === 'dog' ? 'hof_dog_history' : 'hof_history'
+    const data = await chrome.storage.local.get([storageKey])
+    return data[storageKey] || []
   }
 
   /**
    * Clear all history
+   * @param {string} type - 'main' or 'dog'
    */
-  async function clearHistory() {
-    await chrome.storage.local.remove(['hof_history'])
-    console.log('[HOF] History cleared')
+  async function clearHistory(type = 'main') {
+    const storageKey = type === 'dog' ? 'hof_dog_history' : 'hof_history'
+    await chrome.storage.local.remove([storageKey])
+    console.log(`[HOF] ${type.toUpperCase()} history cleared`)
   }
 
   return {

@@ -7,6 +7,7 @@ const DogAutoSpin = (() => {
   let isActive = false
   let shouldStop = false
   let currentTimeoutId = null
+  let lastClaimedLevel = 0 // Track last claimed level to avoid duplicate claims
 
   let stats = {
     totalSpins: 0,
@@ -47,6 +48,7 @@ const DogAutoSpin = (() => {
     shouldStop = false
     currentTimeoutId = null
     currentTabId = tabId
+    lastClaimedLevel = 0 // Reset claimed level tracker
 
     stats = {
       totalSpins: 0,
@@ -127,6 +129,15 @@ const DogAutoSpin = (() => {
         return
       }
 
+      // Debug recording - record response body
+      if (self.DebugRecorder?.isActive() && result) {
+        self.DebugRecorder.recordHttpResponseBody(
+          capturedRequest?.url || 'dog-spin',
+          result.status,
+          result.data,
+        )
+      }
+
       // Process result
       if (result.status === 200 && result.data) {
         const boneAmount = result.data.wheel?.boneAmount || 0
@@ -170,14 +181,66 @@ const DogAutoSpin = (() => {
         stats.progressPercent = progressPercent
         stats.nextMilestone = nextMilestone
 
-        // Notify progress
-        if (currentTabId) {
-          notifyTab('DOG_AUTO_SPIN_PROGRESS', {
-            spinNumber: stats.totalSpins,
-            wonWedgeNumber: wonWedgeNumber,
-            stats: stats,
-            progressBar: result.data.progressBar,
-          })
+        // Check if level completed (100% progress) - auto claim rewards
+        // Only claim if we haven't claimed for this level yet
+        if (progressPercent >= 100 && version !== lastClaimedLevel) {
+          console.log(
+            '%c[HOF DogAutoSpin] 🎁 LEVEL COMPLETE! Claiming rewards...',
+            'background:gold;color:black;font-size:14px',
+          )
+          lastClaimedLevel = version // Mark this level as claimed
+          await claimLevelRewards(currentTabId)
+
+          // Wait a moment for server to process
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+
+          // Do an immediate extra spin to get fresh state
+          console.log('[HOF DogAutoSpin] Getting fresh state after reward claim...')
+          const freshResult = await self.SpinReplay.replaySpin(capturedRequest, currentTabId)
+
+          if (freshResult.status === 200 && freshResult.data) {
+            // Update with fresh data
+            const newBones = freshResult.data.wheel?.boneAmount || 0
+            const newPoints = freshResult.data.progressBar?.points?.current || 0
+            const newTotal = freshResult.data.progressBar?.points?.total || 20000
+            const newVersion = freshResult.data.version || 0
+            const newProgress = newTotal > 0 ? Math.floor((newPoints / newTotal) * 100) : 0
+            const newMilestones = freshResult.data.progressBar?.milestones || []
+            const newNextMilestone = newMilestones.find((m) => m.status === 'NOT_ACHIEVED')
+
+            stats.totalBones = newBones
+            stats.totalPoints = newPoints
+            stats.currentLevel = newVersion
+            stats.progressPercent = newProgress
+            stats.nextMilestone = newNextMilestone
+            stats.totalSpins++ // Count the refresh spin
+
+            console.log(
+              `[HOF DogAutoSpin] Fresh state: Level ${newVersion}, Progress ${newProgress}%`,
+            )
+
+            // Notify with fresh data
+            if (currentTabId) {
+              notifyTab('DOG_AUTO_SPIN_PROGRESS', {
+                spinNumber: stats.totalSpins,
+                wonWedgeNumber: freshResult.data.wonWedgeNumber || 0,
+                stats: stats,
+                progressBar: freshResult.data.progressBar,
+              })
+            }
+          }
+        }
+
+        // Notify progress (if we didn't just claim rewards)
+        if (progressPercent < 100 || version === lastClaimedLevel) {
+          if (currentTabId) {
+            notifyTab('DOG_AUTO_SPIN_PROGRESS', {
+              spinNumber: stats.totalSpins,
+              wonWedgeNumber: wonWedgeNumber,
+              stats: stats,
+              progressBar: result.data.progressBar,
+            })
+          }
         }
       }
     } catch (err) {
@@ -221,6 +284,119 @@ const DogAutoSpin = (() => {
     chrome.tabs.sendMessage(currentTabId, { type, ...data }).catch(() => {
       // Tab might be closed
     })
+  }
+
+  /**
+   * Claim level rewards when progress reaches 100%
+   */
+  async function claimLevelRewards(tabId) {
+    try {
+      const capturedDogRequest = self.RequestCapture.getCapturedDogRequest()
+      if (!capturedDogRequest) {
+        console.log('[HOF DogAutoSpin] No captured request for rewards')
+        return
+      }
+
+      // Build rewards endpoint URL
+      const rewardsUrl =
+        'https://hof-dsa.playtika.com/hof-bestie-service/public/v1/game/level/rewards'
+
+      // Extract headers from captured request
+      const headersArray = capturedDogRequest.headersArray.filter((h) => {
+        const lowerName = h.name.toLowerCase()
+        return (
+          !lowerName.startsWith(':') &&
+          lowerName !== 'content-length' &&
+          lowerName !== 'content-type'
+        )
+      })
+
+      // Add content-type
+      headersArray.push({ name: 'content-type', value: 'application/json' })
+
+      // Execute rewards claim in page context
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: async (url, headersArray) => {
+          const headers = {}
+          for (const h of headersArray) {
+            headers[h.name] = h.value
+          }
+
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: '{}',
+          })
+
+          const data = await response.json()
+          return { status: response.status, data }
+        },
+        args: [rewardsUrl, headersArray],
+      })
+
+      if (results?.[0]?.result) {
+        const result = results[0].result
+        console.log('[HOF DogAutoSpin] ✅ Rewards claimed:', result)
+
+        // Check if we need to open new level
+        if (result.data?.nextAction === 'OPEN_NEW_LEVEL') {
+          console.log('[HOF DogAutoSpin] 🎯 Opening new level...')
+
+          // Call /game/start to initialize new level
+          const startUrl = 'https://hof-dsa.playtika.com/hof-bestie-service/public/v1/game/start'
+
+          const startResults = await chrome.scripting.executeScript({
+            target: { tabId },
+            world: 'MAIN',
+            func: async (url, headersArray) => {
+              const headers = {}
+              for (const h of headersArray) {
+                headers[h.name] = h.value
+              }
+
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ isFirstPlay: false }),
+              })
+
+              const data = await response.json()
+              return { status: response.status, data }
+            },
+            args: [startUrl, headersArray],
+          })
+
+          if (startResults?.[0]?.result?.data) {
+            const startData = startResults[0].result.data
+            console.log('[HOF DogAutoSpin] ✅ New level opened! Version:', startData.version)
+
+            // Notify UI with new level data
+            if (tabId) {
+              chrome.tabs
+                .sendMessage(tabId, {
+                  type: 'DOG_NEW_LEVEL_STARTED',
+                  levelData: startData,
+                })
+                .catch(() => {})
+            }
+          }
+        }
+
+        // Notify UI that rewards were claimed
+        if (tabId) {
+          chrome.tabs
+            .sendMessage(tabId, {
+              type: 'DOG_REWARDS_CLAIMED',
+              result: result.data,
+            })
+            .catch(() => {})
+        }
+      }
+    } catch (err) {
+      console.error('[HOF DogAutoSpin] Error claiming rewards:', err)
+    }
   }
 
   /**

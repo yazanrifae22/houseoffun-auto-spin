@@ -242,7 +242,19 @@ const UIManager = (() => {
 
     const profit = stats.currentBalance - stats.startBalance
 
+    // Safety check for bonus stats (handle undefined)
+    const freeSpinBonuses = stats.freeSpinBonuses || 0
+    const freeSpinsPlayed = stats.freeSpinsPlayed || 0
+    const freeSpinWins = stats.freeSpinWins || 0
+    const starSpinBonuses = stats.starSpinBonuses || 0
+    const starSpinsPlayed = stats.starSpinsPlayed || 0
+    const starSpinWins = stats.starSpinWins || 0
+
+    // Calculate total profit (profit from spins + bonus wins)
+    const totalProfit = profit + freeSpinWins + starSpinWins
+
     el.innerHTML = `
+      <!-- Main Stats -->
       <div class="hof-stat-row">
         <span>🎰 Spins</span>
         <span class="hof-stat-value">${stats.totalSpins}</span>
@@ -255,9 +267,42 @@ const UIManager = (() => {
         <span>💰 Balance</span>
         <span class="hof-stat-value">${stats.currentBalance.toLocaleString()}</span>
       </div>
-      <div class="hof-stat-row">
-        <span>${profit >= 0 ? '📈' : '📉'} Profit</span>
-        <span class="hof-stat-value" style="color:${profit >= 0 ? '#00ff88' : '#ff6b6b'}">${profit >= 0 ? '+' : ''}${profit.toLocaleString()}</span>
+      
+      <!-- Profit Section -->
+      <div style="border-top:1px solid rgba(255,255,255,0.15);margin:8px 0;padding-top:8px;">
+        <div class="hof-stat-row">
+          <span>${profit >= 0 ? '📈' : '📉'} Spin Profit</span>
+          <span class="hof-stat-value" style="color:${profit >= 0 ? '#00ff88' : '#ff6b6b'}">${profit >= 0 ? '+' : ''}${profit.toLocaleString()}</span>
+        </div>
+
+        <!-- Bonus Stats Section (Always Visible) -->
+        <div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:8px;margin:8px 0;">
+          <div style="color:#aaa;font-size:11px;margin-bottom:6px;font-weight:600;">🎁 BONUS WINS</div>
+          
+          <div class="hof-stat-row">
+            <span style="font-size:11px;">💫 Free Spins</span>
+            <span style="color:${freeSpinBonuses > 0 ? '#ff79c6' : '#666'};font-size:11px;">${freeSpinBonuses} × (${freeSpinsPlayed} spins)</span>
+          </div>
+          <div class="hof-stat-row">
+            <span style="font-size:11px;">└─ Won</span>
+            <span style="color:${freeSpinWins > 0 ? '#ff79c6' : '#666'};font-size:11px;">+${freeSpinWins.toLocaleString()}</span>
+          </div>
+
+          <div class="hof-stat-row" style="margin-top:4px;">
+            <span style="font-size:11px;">⭐ Star Spins</span>
+            <span style="color:${starSpinBonuses > 0 ? '#ffd700' : '#666'};font-size:11px;">${starSpinBonuses} × (${starSpinsPlayed} spins)</span>
+          </div>
+          <div class="hof-stat-row">
+            <span style="font-size:11px;">└─ Won</span>
+            <span style="color:${starSpinWins > 0 ? '#ffd700' : '#666'};font-size:11px;">+${starSpinWins.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <!-- Total Profit (Highlighted) -->
+        <div class="hof-stat-row" style="border-top:2px solid rgba(255,255,255,0.2);padding-top:8px;margin-top:4px;">
+          <span style="font-weight:700;font-size:13px;">💎 TOTAL PROFIT</span>
+          <span class="hof-stat-value" style="color:${totalProfit >= 0 ? '#00ff88' : '#ff6b6b'};font-weight:700;font-size:15px;">${totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString()}</span>
+        </div>
       </div>
     `
 
@@ -283,17 +328,39 @@ const UIManager = (() => {
     const profit = stats.currentBalance - stats.startBalance
     const duration = Math.round((Date.now() - stats.startTime) / 1000)
 
+    // Safety checks for bonus stats
+    const freeSpinBonuses = stats.freeSpinBonuses || 0
+    const freeSpinWins = stats.freeSpinWins || 0
+    const starSpinBonuses = stats.starSpinBonuses || 0
+    const starSpinWins = stats.starSpinWins || 0
+
+    // Calculate total profit including bonuses
+    const totalProfit = profit + freeSpinWins + starSpinWins
+
     el.innerHTML = `
       <div style="text-align:center;padding:10px;">
         <div style="font-size:16px;font-weight:bold;margin-bottom:10px;">📊 Session Complete</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;">
           <div>Spins:</div><div style="text-align:right">${stats.totalSpins}</div>
           <div>Duration:</div><div style="text-align:right">${duration}s</div>
-          <div>Start:</div><div style="text-align:right">${stats.startBalance.toLocaleString()}</div>
-          <div>End:</div><div style="text-align:right">${stats.currentBalance.toLocaleString()}</div>
+          <div>Won:</div><div style="text-align:right">${stats.totalWins.toLocaleString()}</div>
+          ${
+            freeSpinBonuses > 0
+              ? `
+          <div style="color:#ff79c6">🎁 Free Bonus:</div><div style="text-align:right;color:#ff79c6">${freeSpinBonuses}× (+${freeSpinWins.toLocaleString()})</div>
+          `
+              : ''
+          }
+          ${
+            starSpinBonuses > 0
+              ? `
+          <div style="color:#ffd700">⭐ Star Bonus:</div><div style="text-align:right;color:#ffd700">${starSpinBonuses}× (+${starSpinWins.toLocaleString()})</div>
+          `
+              : ''
+          }
         </div>
-        <div style="margin-top:12px;font-size:18px;font-weight:bold;color:${profit >= 0 ? '#00ff88' : '#ff6b6b'}">
-          ${profit >= 0 ? '📈 +' : '📉 '}${profit.toLocaleString()}
+        <div style="margin-top:12px;font-size:18px;font-weight:bold;color:${totalProfit >= 0 ? '#00ff88' : '#ff6b6b'}">
+          ${totalProfit >= 0 ? '📈 +' : '📉 '}${totalProfit.toLocaleString()}
         </div>
       </div>
     `

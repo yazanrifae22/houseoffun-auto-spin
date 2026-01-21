@@ -7,6 +7,7 @@ const RequestCapture = (() => {
   const pendingBodies = {}
   let capturedSpinRequest = null
   let capturedDogSpinRequest = null
+  let capturedEventRequest = null
 
   /**
    * Initialize request capture listeners
@@ -34,12 +35,19 @@ const RequestCapture = (() => {
    * Load captured requests from storage
    */
   async function loadFromStorage() {
-    const data = await chrome.storage.local.get(['hof_spin_request', 'hof_dog_spin_request'])
+    const data = await chrome.storage.local.get([
+      'hof_spin_request',
+      'hof_dog_spin_request',
+      'hof_event_request',
+    ])
     if (data.hof_spin_request) {
       capturedSpinRequest = data.hof_spin_request
     }
     if (data.hof_dog_spin_request) {
       capturedDogSpinRequest = data.hof_dog_spin_request
+    }
+    if (data.hof_event_request) {
+      capturedEventRequest = data.hof_event_request
     }
   }
 
@@ -79,6 +87,15 @@ const RequestCapture = (() => {
         type: 'dog',
       }
     }
+    // Check if this is an event stream request
+    else if (details.url.includes('client-event-stream/authenticated/events')) {
+      pendingBodies[details.requestId] = {
+        url: details.url,
+        body: bodyStr,
+        tabId: details.tabId,
+        type: 'event',
+      }
+    }
   }
 
   /**
@@ -101,6 +118,19 @@ const RequestCapture = (() => {
       timestamp: Date.now(),
     }
 
+    // Debug recording - record request
+    if (self.DebugRecorder?.isActive()) {
+      self.DebugRecorder.recordHttpRequest({
+        requestId: details.requestId,
+        url: pending.url,
+        method: details.method,
+        type: pending.type,
+        requestBody: pending.body,
+        headers: headersArray,
+        initiator: details.initiator,
+      })
+    }
+
     if (pending.type === 'main') {
       console.log('%c[HOF] 🎰 MAIN SPIN CAPTURED!', 'background:green;color:white;font-size:14px')
       capturedSpinRequest = captureData
@@ -117,6 +147,13 @@ const RequestCapture = (() => {
       if (pending.tabId > 0) {
         chrome.tabs.sendMessage(pending.tabId, { type: 'DOG_SPIN_CAPTURED' }).catch(() => {})
       }
+    } else if (pending.type === 'event') {
+      console.log(
+        '%c[HOF] ⭐ EVENT STREAM CAPTURED!',
+        'background:purple;color:white;font-size:14px',
+      )
+      capturedEventRequest = captureData
+      chrome.storage.local.set({ hof_event_request: capturedEventRequest })
     }
 
     // Cleanup
@@ -127,6 +164,18 @@ const RequestCapture = (() => {
    * Handle request completion - cleanup
    */
   function handleCompleted(details) {
+    // Debug recording - record response
+    if (self.DebugRecorder?.isActive()) {
+      self.DebugRecorder.recordHttpResponse({
+        requestId: details.requestId,
+        url: details.url,
+        statusCode: details.statusCode,
+        statusLine: details.statusLine,
+        responseHeaders: details.responseHeaders,
+        fromCache: details.fromCache,
+      })
+    }
+
     delete pendingBodies[details.requestId]
   }
 
@@ -160,12 +209,29 @@ const RequestCapture = (() => {
     await chrome.storage.local.remove(['hof_dog_spin_request'])
   }
 
+  /**
+   * Get current captured event request
+   */
+  function getCapturedEventRequest() {
+    return capturedEventRequest
+  }
+
+  /**
+   * Clear captured event request
+   */
+  async function clearCapturedEventRequest() {
+    capturedEventRequest = null
+    await chrome.storage.local.remove(['hof_event_request'])
+  }
+
   return {
     init,
     getCapturedRequest,
     getCapturedDogRequest,
+    getCapturedEventRequest,
     clearCapturedRequest,
     clearCapturedDogRequest,
+    clearCapturedEventRequest,
   }
 })()
 
