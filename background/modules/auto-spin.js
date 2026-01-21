@@ -367,6 +367,14 @@ const AutoSpin = (() => {
             },
           )
 
+          // DEBUG: Track balance before bonus
+          const balanceBeforeBonus = balance
+          console.log(
+            '%c[DEBUG] Balance BEFORE free spins bonus:',
+            'background:#2196f3;color:white;padding:2px 6px',
+            balanceBeforeBonus.toLocaleString(),
+          )
+
           try {
             // Play all bonus spins automatically
             let bonusResult = await playBonusSpins(
@@ -379,6 +387,16 @@ const AutoSpin = (() => {
             console.log(
               '%c[HOF AutoSpin] ✅ FREE SPINS COMPLETED - Resuming normal spins',
               'background:#4caf50;color:white;font-weight:bold;padding:4px 8px',
+            )
+
+            // DEBUG: Log bonus result details
+            console.log(
+              '%c[DEBUG] Bonus result:',
+              'background:#2196f3;color:white;padding:2px 6px',
+              {
+                spinsPlayed: bonusResult.spinsPlayed,
+                totalWin: bonusResult.totalWin,
+              },
             )
 
             // Check if a new bonus was triggered during the bonus
@@ -568,6 +586,14 @@ const AutoSpin = (() => {
             miniGameData,
           )
 
+          // DEBUG: Track balance before mini-game
+          const balanceBeforeMiniGame = balance
+          console.log(
+            `%c[DEBUG] Balance BEFORE ${miniGameData.type} mini-game:`,
+            'background:#9c27b0;color:white;padding:2px 6px',
+            balanceBeforeMiniGame.toLocaleString(),
+          )
+
           try {
             const miniGameResult = await self.MiniGameReplay.playMiniGame(
               miniGameData,
@@ -579,12 +605,22 @@ const AutoSpin = (() => {
             )
 
             if (miniGameResult.success) {
+              // DEBUG: Log mini-game win details
+              console.log(
+                `%c[DEBUG] ${miniGameData.type} mini-game completed:`,
+                'background:#9c27b0;color:white;padding:2px 6px',
+                {
+                  spinsPlayed: miniGameResult.spinsPlayed,
+                  totalWin: miniGameResult.totalWin,
+                },
+              )
               // Enhanced logging and tracking for free spins
               if (miniGameData.type === 'freeSpins') {
                 // Track free spins separately
                 stats.freeSpinBonuses++ // Increment bonus count
                 stats.freeSpinWins += miniGameResult.totalWin // Add free spin winnings
                 stats.freeSpinsPlayed += miniGameData.spins // Track total free spins played
+                stats.totalWins += miniGameResult.totalWin // Add to main wins counter
 
                 self.Logger.log(
                   'MINIGAME',
@@ -601,6 +637,7 @@ const AutoSpin = (() => {
                 stats.starSpinBonuses++ // Increment star bonus count
                 stats.starSpinWins += miniGameResult.totalWin // Add star spin winnings
                 stats.starSpinsPlayed += miniGameData.spins // Track total star spins played
+                stats.totalWins += miniGameResult.totalWin // Add to main wins counter
 
                 self.Logger.log(
                   'MINIGAME',
@@ -613,14 +650,12 @@ const AutoSpin = (() => {
                   },
                 )
               } else {
+                // Add to main wins counter for other mini-game types
+                stats.totalWins += miniGameResult.totalWin
                 self.Logger.log('MINIGAME', `✅ Won: ${miniGameResult.totalWin.toLocaleString()}`, {
                   totalWin: miniGameResult.totalWin,
                 })
               }
-
-              // Add mini-game win to stats
-              stats.wins += miniGameResult.totalWin
-              stats.profit = stats.wins - stats.spins * stats.betAmount
             }
           } catch (miniGameErr) {
             console.error('[HOF AutoSpin] Mini-game error:', miniGameErr)
@@ -630,6 +665,36 @@ const AutoSpin = (() => {
         // Set start balance from first spin
         if (stats.totalSpins === 0) {
           stats.startBalance = balance - spinWin
+        }
+
+        // DEBUG: Track balance changes after bonuses
+        if (stats.freeSpinWins > 0 || stats.starSpinWins > 0) {
+          console.log(
+            '%c[DEBUG] Balance AFTER bonuses:',
+            'background:#4caf50;color:white;padding:2px 6px',
+            {
+              currentBalance: balance.toLocaleString(),
+              balanceChange: (balance - stats.startBalance).toLocaleString(),
+              freeSpinWins: stats.freeSpinWins.toLocaleString(),
+              starSpinWins: stats.starSpinWins.toLocaleString(),
+              totalBonusWins: (stats.freeSpinWins + stats.starSpinWins).toLocaleString(),
+            },
+          )
+          console.log(
+            '%c[DEBUG] DOUBLE-COUNT CHECK:',
+            'background:#ff9800;color:white;font-weight:bold;padding:2px 6px',
+            {
+              question: 'Does balance change include bonus wins?',
+              balanceChange: balance - stats.startBalance,
+              totalBonusWins: stats.freeSpinWins + stats.starSpinWins,
+              ratio:
+                stats.freeSpinWins + stats.starSpinWins > 0
+                  ? ((balance - stats.startBalance) / (stats.freeSpinWins + stats.starSpinWins)).toFixed(2)
+                  : 'N/A',
+              interpretation:
+                'If ratio ≈ 1.0, bonuses ARE in balance (double-count). If ratio » 1.0, bonuses NOT in balance (correct).',
+            },
+          )
         }
 
         // Update stats

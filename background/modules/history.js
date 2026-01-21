@@ -12,11 +12,12 @@ const History = (() => {
    * @param {string} type - 'main' or 'dog'
    */
   async function saveSession(stats, type = 'main') {
-    // Calculate total profit including bonus wins
-    const baseProfit = stats.currentBalance - stats.startBalance
+    // FIXED: Use ONLY balance change for profit
+    // The game server's balance already includes ALL wins (regular + bonuses)
+    // Adding bonus wins again would double-count them
+    const totalProfit = stats.currentBalance - stats.startBalance
     const freeSpinWins = stats.freeSpinWins || 0
     const starSpinWins = stats.starSpinWins || 0
-    const totalProfit = baseProfit + freeSpinWins + starSpinWins
 
     const session = {
       date: new Date().toISOString(),
@@ -24,10 +25,9 @@ const History = (() => {
       totalWins: stats.totalWins,
       startBalance: stats.startBalance,
       endBalance: stats.currentBalance,
-      profit: totalProfit, // Total profit including all bonuses
-      baseProfit: baseProfit, // Base profit without bonuses
-      freeSpinWins: freeSpinWins,
-      starSpinWins: starSpinWins,
+      profit: totalProfit, // Balance-based profit (no double-counting)
+      freeSpinWins: freeSpinWins, // For informational breakdown
+      starSpinWins: starSpinWins, // For informational breakdown
       duration: Date.now() - stats.startTime,
       type: type, // 'main' or 'dog'
     }

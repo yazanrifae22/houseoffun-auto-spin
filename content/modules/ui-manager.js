@@ -250,8 +250,10 @@ const UIManager = (() => {
     const starSpinsPlayed = stats.starSpinsPlayed || 0
     const starSpinWins = stats.starSpinWins || 0
 
-    // Calculate total profit (profit from spins + bonus wins)
-    const totalProfit = profit + freeSpinWins + starSpinWins
+    // FIXED: Use ONLY balance change for profit
+    // The game server's balance already includes ALL wins (regular + bonuses)
+    // Bonus counters are just for display to show breakdown
+    const totalProfit = profit
 
     el.innerHTML = `
       <!-- Main Stats -->
@@ -270,35 +272,46 @@ const UIManager = (() => {
       
       <!-- Profit Section -->
       <div style="border-top:1px solid rgba(255,255,255,0.15);margin:8px 0;padding-top:8px;">
-        <div class="hof-stat-row">
-          <span>${profit >= 0 ? '📈' : '📉'} Spin Profit</span>
-          <span class="hof-stat-value" style="color:${profit >= 0 ? '#00ff88' : '#ff6b6b'}">${profit >= 0 ? '+' : ''}${profit.toLocaleString()}</span>
-        </div>
-
-        <!-- Bonus Stats Section (Always Visible) -->
-        <div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:8px;margin:8px 0;">
-          <div style="color:#aaa;font-size:11px;margin-bottom:6px;font-weight:600;">🎁 BONUS WINS</div>
-          
+        <!-- Bonus Stats Section (Informational Only) -->
+        ${
+          freeSpinBonuses > 0 || starSpinBonuses > 0
+            ? `
+        <div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:8px;margin-bottom:8px;">
+          <div style="color:#aaa;font-size:11px;margin-bottom:6px;font-weight:600;">🎁 BONUS BREAKDOWN</div>
+          ${
+            freeSpinBonuses > 0
+              ? `
           <div class="hof-stat-row">
             <span style="font-size:11px;">💫 Free Spins</span>
-            <span style="color:${freeSpinBonuses > 0 ? '#ff79c6' : '#666'};font-size:11px;">${freeSpinBonuses} × (${freeSpinsPlayed} spins)</span>
+            <span style="color:#ff79c6;font-size:11px;">${freeSpinBonuses} × (${freeSpinsPlayed} spins)</span>
           </div>
           <div class="hof-stat-row">
             <span style="font-size:11px;">└─ Won</span>
-            <span style="color:${freeSpinWins > 0 ? '#ff79c6' : '#666'};font-size:11px;">+${freeSpinWins.toLocaleString()}</span>
+            <span style="color:#ff79c6;font-size:11px;">+${freeSpinWins.toLocaleString()}</span>
           </div>
-
+          `
+              : ''
+          }
+          ${
+            starSpinBonuses > 0
+              ? `
           <div class="hof-stat-row" style="margin-top:4px;">
             <span style="font-size:11px;">⭐ Star Spins</span>
-            <span style="color:${starSpinBonuses > 0 ? '#ffd700' : '#666'};font-size:11px;">${starSpinBonuses} × (${starSpinsPlayed} spins)</span>
+            <span style="color:#ffd700;font-size:11px;">${starSpinBonuses} × (${starSpinsPlayed} spins)</span>
           </div>
           <div class="hof-stat-row">
             <span style="font-size:11px;">└─ Won</span>
-            <span style="color:${starSpinWins > 0 ? '#ffd700' : '#666'};font-size:11px;">+${starSpinWins.toLocaleString()}</span>
+            <span style="color:#ffd700;font-size:11px;">+${starSpinWins.toLocaleString()}</span>
           </div>
+          `
+              : ''
+          }
         </div>
+        `
+            : ''
+        }
 
-        <!-- Total Profit (Highlighted) -->
+        <!-- Total Profit (Balance-Based, No Double-Count) -->
         <div class="hof-stat-row" style="border-top:2px solid rgba(255,255,255,0.2);padding-top:8px;margin-top:4px;">
           <span style="font-weight:700;font-size:13px;">💎 TOTAL PROFIT</span>
           <span class="hof-stat-value" style="color:${totalProfit >= 0 ? '#00ff88' : '#ff6b6b'};font-weight:700;font-size:15px;">${totalProfit >= 0 ? '+' : ''}${totalProfit.toLocaleString()}</span>
@@ -334,8 +347,8 @@ const UIManager = (() => {
     const starSpinBonuses = stats.starSpinBonuses || 0
     const starSpinWins = stats.starSpinWins || 0
 
-    // Calculate total profit including bonuses
-    const totalProfit = profit + freeSpinWins + starSpinWins
+    // FIXED: Use ONLY balance change for profit (same as live stats)
+    const totalProfit = profit
 
     el.innerHTML = `
       <div style="text-align:center;padding:10px;">
@@ -347,14 +360,14 @@ const UIManager = (() => {
           ${
             freeSpinBonuses > 0
               ? `
-          <div style="color:#ff79c6">🎁 Free Bonus:</div><div style="text-align:right;color:#ff79c6">${freeSpinBonuses}× (+${freeSpinWins.toLocaleString()})</div>
+          <div style="color:#ff79c6">🎁 Free Spins:</div><div style="text-align:right;color:#ff79c6">${freeSpinBonuses}× (+${freeSpinWins.toLocaleString()})</div>
           `
               : ''
           }
           ${
             starSpinBonuses > 0
               ? `
-          <div style="color:#ffd700">⭐ Star Bonus:</div><div style="text-align:right;color:#ffd700">${starSpinBonuses}× (+${starSpinWins.toLocaleString()})</div>
+          <div style="color:#ffd700">⭐ Star Spins:</div><div style="text-align:right;color:#ffd700">${starSpinBonuses}× (+${starSpinWins.toLocaleString()})</div>
           `
               : ''
           }
