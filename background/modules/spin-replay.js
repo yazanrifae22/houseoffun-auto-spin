@@ -4,12 +4,10 @@
  */
 
 const SpinReplay = (() => {
-  /**
-   * Generate unique 32-digit ID for spin request
-   */
-  function generateUniqueId() {
-    return Array.from({ length: 32 }, () => Math.floor(Math.random() * 10)).join('')
-  }
+  // Use shared utility from FetchHelpers
+  const generateUniqueId = () =>
+    self.FetchHelpers?.generateUniqueId() ||
+    Array.from({ length: 32 }, () => Math.floor(Math.random() * 10)).join('')
 
   /**
    * Replay a spin request in the page context
@@ -51,55 +49,8 @@ const SpinReplay = (() => {
     return result
   }
 
-  /**
-   * Function to be injected and executed in page context
-   * This runs in the MAIN world and has access to cookies/session
-   */
-  async function executeFetchInPage(url, body, headersArray) {
-    const headers = {}
-
-    // Headers to skip (browser-controlled)
-    const skipHeaders = [
-      'host',
-      'connection',
-      'content-length',
-      'accept-encoding',
-      'sec-fetch-dest',
-      'sec-fetch-mode',
-      'sec-fetch-site',
-      'sec-ch-ua',
-      'sec-ch-ua-mobile',
-      'sec-ch-ua-platform',
-    ]
-
-    // Build headers object
-    for (const h of headersArray) {
-      if (!skipHeaders.includes(h.name.toLowerCase())) {
-        headers[h.name] = h.value
-      }
-    }
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: body,
-        credentials: 'include',
-      })
-
-      const text = await response.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch (e) {
-        data = text
-      }
-
-      return { status: response.status, data }
-    } catch (err) {
-      return { error: err.message }
-    }
-  }
+  // Use shared executeFetchInPage from FetchHelpers (injected function)
+  const executeFetchInPage = self.FetchHelpers?.executeFetchInPage
 
   return {
     replaySpin,

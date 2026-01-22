@@ -119,57 +119,8 @@ const EventBonusStream = (() => {
     return { success: true, data: result }
   }
 
-  /**
-   * Function to be injected and executed in page context
-   */
-  async function executeFetchInPage(url, body, headersArray) {
-    const headers = {}
-
-    const skipHeaders = [
-      'host',
-      'connection',
-      'content-length',
-      'accept-encoding',
-      'sec-fetch-dest',
-      'sec-fetch-mode',
-      'sec-fetch-site',
-      'sec-ch-ua',
-      'sec-ch-ua-mobile',
-      'sec-ch-ua-platform',
-    ]
-
-    for (const h of headersArray) {
-      if (!skipHeaders.includes(h.name.toLowerCase())) {
-        headers[h.name] = h.value
-      }
-    }
-
-    // Add required headers
-    headers['content-type'] = 'application/json'
-    headers['request_id'] =
-      Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: body,
-        credentials: 'include',
-      })
-
-      const text = await response.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch (e) {
-        data = text
-      }
-
-      return { status: response.status, data }
-    } catch (err) {
-      return { error: err.message }
-    }
-  }
+  // Use shared executeFetchInPage from FetchHelpers (injected function)
+  const executeFetchInPage = self.FetchHelpers?.executeFetchInPage
 
   /**
    * Extract user info from game response or captured request
@@ -247,14 +198,13 @@ const EventBonusStream = (() => {
       console.log(`[EventBonusStream] ✅ Successfully extracted and validated all info`)
       return { session, userId, levelId }
     } else {
-      console.error(
-        `[EventBonusStream] ❌ Validation failed:`,
-        {
-          session: isValidSession ? 'valid' : `invalid (${typeof session}, length: ${session.length})`,
-          userId: isValidUserId ? 'valid' : `invalid (${userId})`,
-          levelId: isValidLevelId ? 'valid' : `invalid (${levelId})`,
-        },
-      )
+      console.error(`[EventBonusStream] ❌ Validation failed:`, {
+        session: isValidSession
+          ? 'valid'
+          : `invalid (${typeof session}, length: ${session.length})`,
+        userId: isValidUserId ? 'valid' : `invalid (${userId})`,
+        levelId: isValidLevelId ? 'valid' : `invalid (${levelId})`,
+      })
       return null // FIX: Return null instead of invalid data
     }
   }

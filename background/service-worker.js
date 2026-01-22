@@ -3,8 +3,10 @@
  * Modular architecture with improved performance and stop mechanism
  */
 
-// Import all modules
+// Import all modules (utilities first for dependencies)
 importScripts(
+  '../utils/constants.js',
+  '../utils/fetch-helpers.js',
   'modules/logger.js',
   'modules/log-messenger.js',
   'modules/debug-recorder.js',

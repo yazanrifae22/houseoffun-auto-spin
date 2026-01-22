@@ -20,8 +20,8 @@ const DogAutoSpin = (() => {
   }
 
   let config = {
-    minDelay: 1000,
-    maxDelay: 2000,
+    minDelay: self.HOFConstants?.DOG_SPIN_MIN_DELAY || 1000,
+    maxDelay: self.HOFConstants?.DOG_SPIN_MAX_DELAY || 2000,
     maxSpins: 0,
   }
 

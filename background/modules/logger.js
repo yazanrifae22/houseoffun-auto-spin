@@ -4,7 +4,7 @@
  */
 
 const Logger = (() => {
-  const MAX_LOGS = 500 // Keep last 500 logs
+  const MAX_LOGS = self.HOFConstants?.MAX_LOG_ENTRIES || 200 // Keep last 200 logs
   let logs = []
   let logObservers = []
 

@@ -4,8 +4,9 @@
  */
 
 const DebugRecorder = (() => {
-  const MAX_EVENTS = 5000 // Circular buffer limit
-  const DOM_THROTTLE_MS = 100 // Throttle DOM mutations
+  const MAX_EVENTS = self.HOFConstants?.MAX_DEBUG_EVENTS || 1000 // Circular buffer limit
+  const DOM_THROTTLE_MS = self.HOFConstants?.DOM_THROTTLE || 100 // Throttle DOM mutations
+  const MEMORY_WARNING_THRESHOLD = self.HOFConstants?.MEMORY_WARNING_THRESHOLD || 100 * 1024 * 1024
 
   let isRecording = false
   let sessionId = null
@@ -13,6 +14,7 @@ const DebugRecorder = (() => {
   let events = []
   let eventIdCounter = 0
   let domThrottle = null
+  let lastMemoryWarning = 0
 
   /**
    * Start a new debug recording session
@@ -112,6 +114,21 @@ const DebugRecorder = (() => {
     }
 
     events.push(event)
+
+    // Check memory usage and warn if high
+    const memUsage = getMemoryUsage()
+    if (memUsage > MEMORY_WARNING_THRESHOLD && Date.now() - lastMemoryWarning > 60000) {
+      console.warn(
+        `[Debug] High memory usage: ${(memUsage / 1024 / 1024).toFixed(1)}MB - Consider stopping debug session`,
+      )
+      lastMemoryWarning = Date.now()
+
+      // Auto-trim if over threshold to prevent crashes
+      if (events.length > MAX_EVENTS / 2) {
+        events = events.slice(0, MAX_EVENTS / 2)
+        console.warn(`[Debug] Auto-trimmed events to ${events.length}`)
+      }
+    }
 
     // Notify content script in real-time
     notifyContentScript(event)
@@ -332,10 +349,29 @@ const DebugRecorder = (() => {
     return 'other'
   }
 
-  function sanitizeData(data) {
-    // Deep clone and remove circular references
+  function sanitizeData(data, maxDepth = 5, currentDepth = 0) {
+    // Prevent infinite recursion
+    if (currentDepth > maxDepth) {
+      return '[Max depth reached]'
+    }
+
+    // Deep clone with size limits to prevent memory bloat
     try {
-      return JSON.parse(JSON.stringify(data))
+      return JSON.parse(
+        JSON.stringify(data, (key, value) => {
+          // Truncate long strings
+          if (typeof value === 'string' && value.length > 1000) {
+            return value.substring(0, 1000) + `... [truncated ${value.length - 1000} chars]`
+          }
+
+          // Truncate large arrays
+          if (Array.isArray(value) && value.length > 100) {
+            return [...value.slice(0, 100), `... [${value.length - 100} more items]`]
+          }
+
+          return value
+        }),
+      )
     } catch (e) {
       return { error: 'Could not serialize data', type: typeof data }
     }

@@ -408,8 +408,9 @@ const MiniGameReplay = (() => {
 
         currentSpin++
 
-        // ULTRA FAST: 50ms delay = 20 spins/second (even faster than requested!)
-        await new Promise((resolve) => setTimeout(resolve, 50))
+        // ULTRA FAST: Configurable delay from constants (default 50ms = 20 spins/second)
+        const delay = self.HOFConstants?.MINIGAME_SPIN_DELAY || 50
+        await new Promise((resolve) => setTimeout(resolve, delay))
       }
 
       // Call event stream after mini-game

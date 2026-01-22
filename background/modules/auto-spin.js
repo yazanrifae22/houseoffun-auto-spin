@@ -17,13 +17,57 @@ const AutoSpin = (() => {
   }
 
   let config = {
-    minDelay: 10, // 0.01 seconds (10ms)
-    maxDelay: 50, // 0.05 seconds (50ms)
+    minDelay: self.HOFConstants?.MAIN_SPIN_MIN_DELAY || 10,
+    maxDelay: self.HOFConstants?.MAIN_SPIN_MAX_DELAY || 50,
     maxSpins: 0,
     stopOnLoss: 0,
   }
 
   let currentTabId = null
+  let abortController = null // For cooperative cancellation
+
+  // Error state tracking
+  let errorState = {
+    consecutiveErrors: 0,
+    lastError: null,
+    maxConsecutiveErrors: self.HOFConstants?.MAX_CONSECUTIVE_ERRORS || 3,
+  }
+
+  /**
+   * Handle spin error with context and recovery logic
+   */
+  function handleSpinError(error, context) {
+    errorState.lastError = {
+      message: error.message,
+      context: context,
+      timestamp: Date.now(),
+      spinNumber: stats.totalSpins,
+    }
+    errorState.consecutiveErrors++
+
+    self.Logger?.log('ERROR', `Spin error in ${context}: ${error.message}`, {
+      error: error.message,
+      context: context,
+      spinNumber: stats.totalSpins,
+      consecutiveErrors: errorState.consecutiveErrors,
+    })
+
+    // Stop if too many consecutive errors
+    if (errorState.consecutiveErrors >= errorState.maxConsecutiveErrors) {
+      console.error(
+        `[HOF AutoSpin] ❌ Too many consecutive errors (${errorState.consecutiveErrors}), stopping`,
+      )
+      stop()
+      return false
+    }
+
+    return true // Continue
+  }
+
+  function resetErrorState() {
+    errorState.consecutiveErrors = 0
+    errorState.lastError = null
+  }
 
   /**
    * Start auto-spin
@@ -47,6 +91,10 @@ const AutoSpin = (() => {
     shouldStop = false
     currentTimeoutId = null
     currentTabId = tabId
+
+    // Create new abort controller for cooperative cancellation
+    abortController = new AbortController()
+    resetErrorState()
 
     stats = {
       totalSpins: 0,
@@ -75,9 +123,6 @@ const AutoSpin = (() => {
     runLoop()
   }
 
-  /**
-   * Stop auto-spin immediately
-   */
   async function stop() {
     if (!isActive) {
       console.log('[HOF AutoSpin] Not running')
@@ -85,6 +130,11 @@ const AutoSpin = (() => {
     }
 
     console.log('%c[HOF AutoSpin] 🛑 STOPPING', 'background:red;color:white;font-size:16px')
+
+    // Abort all ongoing operations
+    if (abortController) {
+      abortController.abort()
+    }
 
     // Set stop flag
     shouldStop = true
@@ -143,6 +193,12 @@ const AutoSpin = (() => {
 
     // Loop until no more spins or chained bonuses
     while (keepLooping && isActive && !shouldStop) {
+      // CHECK ABORT SIGNAL for instant stop
+      if (abortController?.signal.aborted) {
+        console.log('[HOF AutoSpin] Bonus interrupted by stop')
+        break
+      }
+
       bonusSpinCount++
       stats.freeSpinsPlayed++ // Track total free spins played
 
@@ -157,7 +213,7 @@ const AutoSpin = (() => {
           session,
           gameId,
           capturedRequest,
-          tabId,
+          currentTabId,
         )
 
         if (result?.status === 200 && result.data?.result?.gameInfo) {
@@ -255,7 +311,26 @@ const AutoSpin = (() => {
       // Small delay between bonus spins (same speed as normal spins)
       const delay =
         Math.floor(Math.random() * (config.maxDelay - config.minDelay + 1)) + config.minDelay
-      await new Promise((resolve) => setTimeout(resolve, delay))
+
+      // ABORTABLE DELAY - can be interrupted immediately
+      try {
+        await new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(resolve, delay)
+          abortController?.signal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timeoutId)
+              reject(new Error('Aborted'))
+            },
+            { once: true },
+          )
+        })
+      } catch (e) {
+        if (e.message === 'Aborted') {
+          console.log('[HOF AutoSpin] Bonus delay aborted')
+          break
+        }
+      }
     }
 
     console.log(
