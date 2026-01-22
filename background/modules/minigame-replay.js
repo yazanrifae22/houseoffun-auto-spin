@@ -217,29 +217,17 @@ const MiniGameReplay = (() => {
             hasLevelId: !!levelId,
           })
 
-          console.log('[HOF MiniGame] ✅ All info available, making event stream calls...')
+          console.log('[HOF MiniGame] ✅ All info available, making PARALLEL event stream calls...')
 
-          // Action 1: Show bonus popup
-          const result1 = await self.EventBonusStream?.callBonusEvent(
-            1,
-            sessionId,
-            userId,
-            levelId,
-            tabId,
-          )
-          console.log('[HOF MiniGame] Event 1 result:', result1)
-          await new Promise((resolve) => setTimeout(resolve, 300))
+          // OPTIMIZED: Parallel event calls (Action 1: Show popup, Action 4: Start clicked)
+          const [result1, result2] = await Promise.all([
+            self.EventBonusStream?.callBonusEvent(1, sessionId, userId, levelId, tabId),
+            self.EventBonusStream?.callBonusEvent(4, sessionId, userId, levelId, tabId),
+          ])
+          console.log('[HOF MiniGame] Parallel events completed:', { result1, result2 })
 
-          // Action 4: Start clicked
-          const result2 = await self.EventBonusStream?.callBonusEvent(
-            4,
-            sessionId,
-            userId,
-            levelId,
-            tabId,
-          )
-          console.log('[HOF MiniGame] Event 2 result:', result2)
-          await new Promise((resolve) => setTimeout(resolve, 500))
+          // Single short delay after parallel calls
+          await new Promise((resolve) => setTimeout(resolve, 150))
 
           console.log(
             '%c[HOF MiniGame] ✅ Event stream calls completed, starting free spins...',
@@ -257,32 +245,21 @@ const MiniGameReplay = (() => {
 
         try {
           if (sessionId && userId) {
-            console.log('[HOF MiniGame] ✅ User info available, making game event calls...')
-
-            // Game action 1005: Show stars popup
-            const result1 = await self.EventBonusStream?.callGameEvent(
-              1005,
-              sessionId,
-              userId,
-              gameId,
-              tabId,
+            console.log(
+              '[HOF MiniGame] ✅ User info available, making PARALLEL game event calls...',
             )
-            console.log('[HOF MiniGame] Game event 1005 result:', result1)
-            await new Promise((resolve) => setTimeout(resolve, 300))
 
-            // Game action 32: Start clicked with numSpins
-            const result2 = await self.EventBonusStream?.callGameEvent(
-              32,
-              sessionId,
-              userId,
-              gameId,
-              tabId,
-              {
+            // OPTIMIZED: Parallel game event calls (1005: Show popup, 32: Start)
+            const [result1, result2] = await Promise.all([
+              self.EventBonusStream?.callGameEvent(1005, sessionId, userId, gameId, tabId),
+              self.EventBonusStream?.callGameEvent(32, sessionId, userId, gameId, tabId, {
                 numSpins: totalSpins,
-              },
-            )
-            console.log('[HOF MiniGame] Game event 32 result:', result2)
-            await new Promise((resolve) => setTimeout(resolve, 500))
+              }),
+            ])
+            console.log('[HOF MiniGame] Parallel game events completed:', { result1, result2 })
+
+            // Single short delay after parallel calls
+            await new Promise((resolve) => setTimeout(resolve, 150))
 
             console.log(
               '%c[HOF MiniGame] ✅ Game event calls completed, starting stars...',
@@ -592,6 +569,45 @@ const MiniGameReplay = (() => {
         })
     } catch (err) {
       // Ignore
+    }
+  }
+
+  /**
+   * Call event stream after mini-game completion
+   * Notifies the server that mini-game has finished
+   */
+  async function callEventStreamAfter(type, token, session, capturedRequest, tabId) {
+    try {
+      // Extract user info for event calls
+      const userInfo = self.EventBonusStream?.extractUserInfo(capturedRequest, null)
+      if (!userInfo) {
+        console.log('[HOF MiniGame] No user info for post-game event, skipping')
+        return
+      }
+
+      const { session: sessionId, userId, levelId } = userInfo
+
+      // Get gameId from captured request
+      let gameId = 190
+      try {
+        const bodyObj = JSON.parse(capturedRequest.body)
+        const params = JSON.parse(bodyObj.params)
+        gameId = params.gameId || 190
+      } catch (e) {
+        // Use default
+      }
+
+      if (type === 'freeSpins') {
+        // Action 5: Bonus complete
+        await self.EventBonusStream?.callBonusEvent(5, sessionId, userId, levelId, tabId)
+        console.log('[HOF MiniGame] Post-game bonus event sent')
+      } else if (type === 'starts' || type === 'jackpot' || type === 'boj') {
+        // Game action 33: Mini-game complete
+        await self.EventBonusStream?.callGameEvent(33, sessionId, userId, gameId, tabId)
+        console.log('[HOF MiniGame] Post-game event sent')
+      }
+    } catch (err) {
+      console.warn('[HOF MiniGame] Post-game event error (non-critical):', err.message)
     }
   }
 

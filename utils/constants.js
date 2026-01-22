@@ -9,21 +9,21 @@ const HOFConstants = (() => {
     MAIN_SPIN_MIN_DELAY: 10, // ms - Minimum delay between main spins
     MAIN_SPIN_MAX_DELAY: 50, // ms - Maximum delay between main spins
 
-    // Bonus Spin Delays
-    BONUS_SPIN_MIN_DELAY: 10, // ms - Minimum delay between bonus spins
-    BONUS_SPIN_MAX_DELAY: 50, // ms - Maximum delay between bonus spins
-    BONUS_SPIN_FIXED_DELAY: 500, // ms - Fixed delay for certain bonus operations
+    // Bonus Spin Delays (OPTIMIZED: reduced for faster throughput)
+    BONUS_SPIN_MIN_DELAY: 5, // ms - Minimum delay between bonus spins
+    BONUS_SPIN_MAX_DELAY: 25, // ms - Maximum delay between bonus spins
+    BONUS_SPIN_FIXED_DELAY: 100, // ms - Fixed delay for certain bonus operations (was 500ms)
 
     // Dog Spin Delays
     DOG_SPIN_MIN_DELAY: 1000, // ms - Minimum delay between dog spins
     DOG_SPIN_MAX_DELAY: 2000, // ms - Maximum delay between dog spins
-    DOG_REWARD_DELAY: 1000, // ms - Delay after claiming rewards
+    DOG_REWARD_DELAY: 500, // ms - Delay after claiming rewards (was 1000ms)
 
-    // Mini-Game Delays
-    MINIGAME_SPIN_DELAY: 50, // ms - Delay between mini-game spins
+    // Mini-Game Delays (OPTIMIZED)
+    MINIGAME_SPIN_DELAY: 30, // ms - Delay between mini-game spins (was 50ms)
 
-    // Event Stream Delays
-    EVENT_STREAM_DELAY: 200, // ms - Delay between event stream calls
+    // Event Stream Delays (OPTIMIZED)
+    EVENT_STREAM_DELAY: 50, // ms - Delay between event stream calls (was 200ms)
 
     // Memory Limits
     MAX_DEBUG_EVENTS: 1000, // Maximum debug events to store
