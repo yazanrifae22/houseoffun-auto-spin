@@ -27,6 +27,10 @@
     system: true,
   }
 
+  // Persistent state for UI switching
+  let lastMainProgressData = null
+  let lastDogProgressData = null
+
   // Check status on load
   chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (response) => {
     autoSpinActive = response?.autoSpinActive || false
@@ -50,6 +54,7 @@
         showNotification('🚀 Main auto-spin started!', 'info')
         break
       case 'AUTO_SPIN_PROGRESS':
+        lastMainProgressData = message
         if (currentSpinTab === 'main') updateProgress(message)
         break
       case 'AUTO_SPIN_STOPPED':
@@ -72,6 +77,7 @@
         showNotification('🦴 Dog auto-spin started!', 'info')
         break
       case 'DOG_AUTO_SPIN_PROGRESS':
+        lastDogProgressData = message
         if (currentSpinTab === 'dog') updateDogProgress(message)
         break
       case 'DOG_AUTO_SPIN_STOPPED':
@@ -104,6 +110,10 @@
       case 'MINIGAME_DEBUG':
         // Update debug panel with detection info
         updateDebugPanel(message.debugInfo)
+        break
+
+      case 'SHOW_NOTIFICATION':
+        showNotification(message.text, message.style || 'info')
         break
     }
   })
@@ -627,6 +637,14 @@
     }
 
     content.innerHTML = html
+
+    // Restore preserved stats when switching back to a tab
+    if (currentSpinTab === 'main' && lastMainProgressData) {
+      updateProgress(lastMainProgressData)
+    }
+    if (currentSpinTab === 'dog' && lastDogProgressData) {
+      updateDogProgress(lastDogProgressData)
+    }
 
     // Add tab switcher event listeners
     document.getElementById('hof-tab-main')?.addEventListener('click', () => {

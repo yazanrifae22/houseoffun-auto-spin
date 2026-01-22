@@ -225,9 +225,63 @@ const AutoSpin = (() => {
             const spinWin = bonusGamePlay.bonusWin || bonusGamePlay.totalWin || 0
             totalBonusWin += spinWin
 
+            const spinsCountdown = bonusGamePlay.spinsCountdown || 0
+            const spinsExtra = bonusGamePlay.spinsExtra || 0
+            const spinTotal = bonusGamePlay.spinsAmount || expectedSpins
+
+            // Log detailed status
             console.log(
-              `[HOF AutoSpin] Bonus spin ${bonusSpinCount}: Won ${spinWin.toLocaleString()}`,
+              `[HOF AutoSpin] Bonus spin ${bonusSpinCount}/${spinTotal}: Won ${spinWin.toLocaleString()} | Remaining: ${spinsCountdown}`,
             )
+
+            // DETECT EXTRA SPINS
+            if (spinsExtra > 0) {
+              console.log(
+                `%c[HOF AutoSpin] 🎁 +${spinsExtra} EXTRA SPINS WON!`,
+                'background:gold;color:black;font-weight:bold;padding:4px 8px;border-radius:4px',
+              )
+              self.Logger.log('BONUS', `🎁 +${spinsExtra} EXTRA SPINS!`, {
+                spsinsExtra: spinsExtra,
+                newTotal: spinsCountdown,
+              })
+
+              // Show toast notification
+              if (currentTabId) {
+                notifyTab('SHOW_NOTIFICATION', {
+                  text: `🎁 +${spinsExtra} EXTRA SPINS!`,
+                  style: 'warning', // Use warning for distinct color (not error) or success for green
+                })
+              }
+
+              // Notify UI of extra spins
+              if (currentTabId) {
+                notifyTab('AUTO_SPIN_PROGRESS', {
+                  spinNumber: stats.totalSpins,
+                  spinWin: totalBonusWin,
+                  bonusDetails: {
+                    hasBonus: true,
+                    features: [
+                      `🎁 +${spinsExtra} EXTRA SPINS!`,
+                      `Bonus Spin: ${bonusSpinCount}/${spinTotal}`,
+                    ],
+                  },
+                  stats: stats,
+                })
+              }
+            } else {
+              // Regular bonus progress update
+              if (currentTabId) {
+                notifyTab('AUTO_SPIN_PROGRESS', {
+                  spinNumber: stats.totalSpins,
+                  spinWin: totalBonusWin,
+                  bonusDetails: {
+                    hasBonus: true,
+                    features: [`Bonus Spin: ${bonusSpinCount}/${spinTotal}`],
+                  },
+                  stats: stats,
+                })
+              }
+            }
 
             // Update stats
             stats.totalWins += spinWin
@@ -284,8 +338,8 @@ const AutoSpin = (() => {
             // ========================================
             // STEP 2: No chain detected → Check spinsCountdown
             // ========================================
-            const spinsCountdown = bonusGamePlay.spinsCountdown || 0
-            console.log(`[HOF AutoSpin] Spins remaining: ${spinsCountdown}`)
+            // const spinsCountdown = bonusGamePlay.spinsCountdown || 0 (Already Defined)
+            // console.log(`[HOF AutoSpin] Spins remaining: ${spinsCountdown}`) (Improved logging above)
 
             if (spinsCountdown > 0) {
               // More spins left, continue loop
@@ -768,18 +822,16 @@ const AutoSpin = (() => {
 
         // Set start balance from first spin
         if (stats.totalSpins === 0) {
-          stats.startBalance = balance - spinWin
+          stats.startBalance = Number(balance) - Number(spinWin)
+          console.log(
+            `[HOF AutoSpin] Start Balance Set: ${stats.startBalance} (Current: ${balance}, First Win: ${spinWin})`,
+          )
         }
-
-        // FIX: Removed debug logging for double-count checks
-        // Server balance already includes all wins (main + bonuses)
-        // stats.totalWins tracks main spin wins only
-        // stats.freeSpinWins and stats.starSpinWins are for informational display
 
         // Update stats
         stats.totalSpins++
-        stats.totalWins += spinWin
-        stats.currentBalance = balance
+        stats.totalWins += Number(spinWin)
+        stats.currentBalance = Number(balance)
 
         // Notify progress (throttled)
         if (currentTabId) {

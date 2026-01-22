@@ -65,7 +65,25 @@ const BonusGameReplay = (() => {
           const bgp = result.data.result.gameInfo.bonusGamePlay
           spinsCountdown = bgp.spinsCountdown || 0
           const spinWin = bgp.bonusWin || 0
+          const spinsExtra = bgp.spinsExtra || 0
           totalBonusWin = bgp.totalWin || 0
+
+          if (spinsExtra > 0) {
+            console.log(
+              `%c[HOF BonusGame] 🎁 +${spinsExtra} EXTRA SPINS!`,
+              'background:gold;color:black;font-weight:bold;padding:2px 4px',
+            )
+            // Show toast notification
+            if (tabId) {
+              chrome.tabs
+                .sendMessage(tabId, {
+                  type: 'SHOW_NOTIFICATION',
+                  text: `🎁 +${spinsExtra} EXTRA SPINS!`,
+                  style: 'warning',
+                })
+                .catch(() => {})
+            }
+          }
 
           console.log(
             `[HOF BonusGame] Spin ${currentSpin}: Won ${spinWin.toLocaleString()}, Total: ${totalBonusWin.toLocaleString()}, Remaining: ${spinsCountdown}`,
