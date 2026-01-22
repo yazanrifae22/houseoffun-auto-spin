@@ -288,8 +288,12 @@ const DogAutoSpin = (() => {
 
   /**
    * Claim level rewards when progress reaches 100%
+   * FIX: Added retry logic with exponential backoff
    */
   async function claimLevelRewards(tabId) {
+    const MAX_RETRIES = 3
+    const RETRY_DELAYS = [1000, 2000, 4000] // Exponential backoff: 1s, 2s, 4s
+
     try {
       const capturedDogRequest = self.RequestCapture.getCapturedDogRequest()
       if (!capturedDogRequest) {
@@ -314,40 +318,19 @@ const DogAutoSpin = (() => {
       // Add content-type
       headersArray.push({ name: 'content-type', value: 'application/json' })
 
-      // Execute rewards claim in page context
-      const results = await chrome.scripting.executeScript({
-        target: { tabId },
-        world: 'MAIN',
-        func: async (url, headersArray) => {
-          const headers = {}
-          for (const h of headersArray) {
-            headers[h.name] = h.value
+      // Retry loop for rewards claim
+      let lastError = null
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            console.log(
+              `[HOF DogAutoSpin] Retry attempt ${attempt + 1}/${MAX_RETRIES} after ${RETRY_DELAYS[attempt - 1]}ms`,
+            )
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS[attempt - 1]))
           }
 
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: headers,
-            body: '{}',
-          })
-
-          const data = await response.json()
-          return { status: response.status, data }
-        },
-        args: [rewardsUrl, headersArray],
-      })
-
-      if (results?.[0]?.result) {
-        const result = results[0].result
-        console.log('[HOF DogAutoSpin] ✅ Rewards claimed:', result)
-
-        // Check if we need to open new level
-        if (result.data?.nextAction === 'OPEN_NEW_LEVEL') {
-          console.log('[HOF DogAutoSpin] 🎯 Opening new level...')
-
-          // Call /game/start to initialize new level
-          const startUrl = 'https://hof-dsa.playtika.com/hof-bestie-service/public/v1/game/start'
-
-          const startResults = await chrome.scripting.executeScript({
+          // Execute rewards claim in page context
+          const results = await chrome.scripting.executeScript({
             target: { tabId },
             world: 'MAIN',
             func: async (url, headersArray) => {
@@ -359,43 +342,143 @@ const DogAutoSpin = (() => {
               const response = await fetch(url, {
                 method: 'POST',
                 headers: headers,
-                body: JSON.stringify({ isFirstPlay: false }),
+                body: '{}',
               })
 
               const data = await response.json()
               return { status: response.status, data }
             },
-            args: [startUrl, headersArray],
+            args: [rewardsUrl, headersArray],
           })
 
-          if (startResults?.[0]?.result?.data) {
-            const startData = startResults[0].result.data
-            console.log('[HOF DogAutoSpin] ✅ New level opened! Version:', startData.version)
+          if (results?.[0]?.result) {
+            const result = results[0].result
 
-            // Notify UI with new level data
+            // Check for non-200 status
+            if (result.status !== 200) {
+              throw new Error(`Rewards claim failed with status ${result.status}`)
+            }
+
+            console.log('[HOF DogAutoSpin] ✅ Rewards claimed:', result)
+
+            // Check if we need to open new level
+            if (result.data?.nextAction === 'OPEN_NEW_LEVEL') {
+              console.log('[HOF DogAutoSpin] 🎯 Opening new level...')
+
+              // Call /game/start to initialize new level (with retry)
+              const startUrl =
+                'https://hof-dsa.playtika.com/hof-bestie-service/public/v1/game/start'
+
+              for (let startAttempt = 0; startAttempt < MAX_RETRIES; startAttempt++) {
+                try {
+                  if (startAttempt > 0) {
+                    console.log(`[HOF DogAutoSpin] Start retry ${startAttempt + 1}/${MAX_RETRIES}`)
+                    await new Promise((resolve) =>
+                      setTimeout(resolve, RETRY_DELAYS[startAttempt - 1]),
+                    )
+                  }
+
+                  const startResults = await chrome.scripting.executeScript({
+                    target: { tabId },
+                    world: 'MAIN',
+                    func: async (url, headersArray) => {
+                      const headers = {}
+                      for (const h of headersArray) {
+                        headers[h.name] = h.value
+                      }
+
+                      const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({ isFirstPlay: false }),
+                      })
+
+                      const data = await response.json()
+                      return { status: response.status, data }
+                    },
+                    args: [startUrl, headersArray],
+                  })
+
+                  if (startResults?.[0]?.result?.data) {
+                    const startData = startResults[0].result.data
+                    console.log(
+                      '[HOF DogAutoSpin] ✅ New level opened! Version:',
+                      startData.version,
+                    )
+
+                    // Notify UI with new level data
+                    if (tabId) {
+                      chrome.tabs
+                        .sendMessage(tabId, {
+                          type: 'DOG_NEW_LEVEL_STARTED',
+                          levelData: startData,
+                        })
+                        .catch(() => {})
+                    }
+                    break // Success, exit retry loop
+                  } else {
+                    throw new Error('No data from game/start')
+                  }
+                } catch (startErr) {
+                  if (startAttempt === MAX_RETRIES - 1) {
+                    // Final attempt failed
+                    console.error(
+                      '[HOF DogAutoSpin] ❌ Failed to open new level after retries:',
+                      startErr,
+                    )
+                    // Notify user of failure
+                    if (tabId) {
+                      chrome.tabs
+                        .sendMessage(tabId, {
+                          type: 'DOG_LEVEL_START_FAILED',
+                          error: startErr.message,
+                        })
+                        .catch(() => {})
+                    }
+                  }
+                }
+              }
+            }
+
+            // Notify UI that rewards were claimed
             if (tabId) {
               chrome.tabs
                 .sendMessage(tabId, {
-                  type: 'DOG_NEW_LEVEL_STARTED',
-                  levelData: startData,
+                  type: 'DOG_REWARDS_CLAIMED',
+                  result: result.data,
                 })
                 .catch(() => {})
             }
-          }
-        }
 
-        // Notify UI that rewards were claimed
-        if (tabId) {
-          chrome.tabs
-            .sendMessage(tabId, {
-              type: 'DOG_REWARDS_CLAIMED',
-              result: result.data,
-            })
-            .catch(() => {})
+            // Success! Exit retry loop
+            return
+          } else {
+            throw new Error('No result from rewards claim script execution')
+          }
+        } catch (err) {
+          lastError = err
+          console.error(`[HOF DogAutoSpin] Attempt ${attempt + 1} failed:`, err.message)
+
+          // If this is the last attempt, throw the error
+          if (attempt === MAX_RETRIES - 1) {
+            throw err
+          }
+          // Otherwise continue to next retry
         }
       }
     } catch (err) {
-      console.error('[HOF DogAutoSpin] Error claiming rewards:', err)
+      console.error('[HOF DogAutoSpin] ❌ Rewards claim failed after all retries:', err)
+
+      // Notify user of permanent failure
+      if (tabId) {
+        chrome.tabs
+          .sendMessage(tabId, {
+            type: 'DOG_REWARDS_CLAIM_FAILED',
+            error: err.message,
+            shouldStop: true, // Suggest stopping auto-spin
+          })
+          .catch(() => {})
+      }
     }
   }
 

@@ -182,11 +182,15 @@ const MiniGameReplay = (() => {
 
     try {
       // Extract user info once for all mini-game types
-      const {
-        session: sessionId,
-        userId,
-        levelId,
-      } = self.EventBonusStream?.extractUserInfo(capturedRequest, fullResponse) || {}
+      // FIX: Handle null return from extractUserInfo
+      const userInfo = self.EventBonusStream?.extractUserInfo(capturedRequest, fullResponse)
+
+      if (!userInfo) {
+        console.warn('[HOF MiniGame] ⚠️  Could not extract user info - skipping event stream calls')
+        console.warn('[HOF MiniGame] Mini-game will still play, but UI may not update correctly')
+      }
+
+      const { session: sessionId, userId, levelId } = userInfo || {}
 
       // Get gameId from captured request
       let gameId = 190 // Default
@@ -199,69 +203,52 @@ const MiniGameReplay = (() => {
       }
 
       // Call appropriate event stream based on mini-game type
-      if (type === 'freeSpins') {
+      // FIX: Only call if we have valid user info
+      if (userInfo && type === 'freeSpins') {
         console.log(
           '%c[HOF MiniGame] 🎰 FREE SPINS DETECTED - Attempting event stream bypass...',
           'background:#ff1744;color:white;font-weight:bold;padding:4px 8px',
         )
 
         try {
-          console.log('[HOF MiniGame] Extracting user info from fullResponse:', {
-            hasFullResponse: !!fullResponse,
-            hasResult: !!fullResponse?.result,
-            hasGameInfo: !!fullResponse?.result?.gameInfo,
+          console.log('[HOF MiniGame] User info validation:', {
+            hasSessionId: !!sessionId,
+            hasUserId: !!userId,
+            hasLevelId: !!levelId,
           })
 
-          console.log('[HOF MiniGame] Extraction result:', {
-            sessionId: !!sessionId,
+          console.log('[HOF MiniGame] ✅ All info available, making event stream calls...')
+
+          // Action 1: Show bonus popup
+          const result1 = await self.EventBonusStream?.callBonusEvent(
+            1,
+            sessionId,
             userId,
             levelId,
-          })
+            tabId,
+          )
+          console.log('[HOF MiniGame] Event 1 result:', result1)
+          await new Promise((resolve) => setTimeout(resolve, 300))
 
-          if (sessionId && userId && levelId) {
-            console.log('[HOF MiniGame] ✅ All info available, making event stream calls...')
+          // Action 4: Start clicked
+          const result2 = await self.EventBonusStream?.callBonusEvent(
+            4,
+            sessionId,
+            userId,
+            levelId,
+            tabId,
+          )
+          console.log('[HOF MiniGame] Event 2 result:', result2)
+          await new Promise((resolve) => setTimeout(resolve, 500))
 
-            // Action 1: Show bonus popup
-            const result1 = await self.EventBonusStream?.callBonusEvent(
-              1,
-              sessionId,
-              userId,
-              levelId,
-              tabId,
-            )
-            console.log('[HOF MiniGame] Event 1 result:', result1)
-            await new Promise((resolve) => setTimeout(resolve, 300))
-
-            // Action 4: Start clicked
-            const result2 = await self.EventBonusStream?.callBonusEvent(
-              4,
-              sessionId,
-              userId,
-              levelId,
-              tabId,
-            )
-            console.log('[HOF MiniGame] Event 2 result:', result2)
-            await new Promise((resolve) => setTimeout(resolve, 500))
-
-            console.log(
-              '%c[HOF MiniGame] ✅ Event stream calls completed, starting free spins...',
-              'background:#4caf50;color:white;padding:2px 6px',
-            )
-          } else {
-            console.error(
-              '%c[HOF MiniGame] ❌ Missing user info - will attempt free spins anyway',
-              'background:#f44336;color:white;padding:2px 6px',
-            )
-            console.error('[HOF MiniGame] Missing values:', {
-              sessionId: sessionId || 'MISSING',
-              userId: userId || 'MISSING',
-              levelId: levelId || 'MISSING',
-            })
-          }
+          console.log(
+            '%c[HOF MiniGame] ✅ Event stream calls completed, starting free spins...',
+            'background:#4caf50;color:white;padding:2px 6px',
+          )
         } catch (eventError) {
           console.error('[HOF MiniGame] Event stream error (continuing anyway):', eventError)
         }
-      } else if (type === 'starts') {
+      } else if (userInfo && type === 'starts') {
         // STARS mini-game - use game event stream
         console.log(
           '%c[HOF MiniGame] ⭐ STARS DETECTED - Attempting event stream bypass...',

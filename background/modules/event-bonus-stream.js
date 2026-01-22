@@ -173,8 +173,10 @@ const EventBonusStream = (() => {
 
   /**
    * Extract user info from game response or captured request
+   * FIX: Return null on validation failure instead of invalid data
    * @param {Object} capturedRequest - The captured spin request
    * @param {Object} fullResponse - The FULL spin response (result.data from auto-spin)
+   * @returns {Object|null} User info object or null if extraction/validation fails
    */
   function extractUserInfo(capturedRequest, fullResponse) {
     let session = ''
@@ -196,8 +198,12 @@ const EventBonusStream = (() => {
         session = params.session || ''
         console.log('[EventBonusStream] Session from request:', session ? '✓' : '✗')
       } catch (e) {
-        console.warn('[EventBonusStream] Could not parse session from request:', e.message)
+        console.error('[EventBonusStream] Failed to parse session from request:', e.message)
+        return null // FIX: Return null instead of continuing with empty session
       }
+    } else {
+      console.error('[EventBonusStream] No captured request provided')
+      return null // FIX: Return null if no request
     }
 
     // Extract userId and levelId from full response
@@ -222,24 +228,35 @@ const EventBonusStream = (() => {
           parseInt(gameInfo.player?.levelId) ||
           0
 
-        console.log('[EventBonusStream] Extracted:', { userId, levelId, session })
+        console.log('[EventBonusStream] Extracted:', { userId, levelId, session: '***' })
       } catch (e) {
         console.error('[EventBonusStream] Error extracting user info:', e.message)
+        return null // FIX: Return null on parsing error
       }
     } else {
-      console.warn('[EventBonusStream] fullResponse does not have result.gameInfo structure')
+      console.error('[EventBonusStream] fullResponse missing result.gameInfo structure')
+      return null // FIX: Return null if structure is invalid
     }
 
-    const success = session && userId > 0 && levelId > 0
-    if (success) {
-      console.log(`[EventBonusStream] ✅ Successfully extracted all info`)
+    // FIX: Validate extracted data
+    const isValidSession = typeof session === 'string' && session.length > 0
+    const isValidUserId = typeof userId === 'number' && userId > 0 && !isNaN(userId)
+    const isValidLevelId = typeof levelId === 'number' && levelId > 0 && !isNaN(levelId)
+
+    if (isValidSession && isValidUserId && isValidLevelId) {
+      console.log(`[EventBonusStream] ✅ Successfully extracted and validated all info`)
+      return { session, userId, levelId }
     } else {
       console.error(
-        `[EventBonusStream] ❌ Missing info - session: ${!!session}, userId: ${userId}, levelId: ${levelId}`,
+        `[EventBonusStream] ❌ Validation failed:`,
+        {
+          session: isValidSession ? 'valid' : `invalid (${typeof session}, length: ${session.length})`,
+          userId: isValidUserId ? 'valid' : `invalid (${userId})`,
+          levelId: isValidLevelId ? 'valid' : `invalid (${levelId})`,
+        },
       )
+      return null // FIX: Return null instead of invalid data
     }
-
-    return { session, userId, levelId }
   }
 
   return {

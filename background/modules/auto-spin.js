@@ -367,6 +367,18 @@ const AutoSpin = (() => {
       const capturedRequest = self.RequestCapture.getCapturedRequest()
       const result = await self.SpinReplay.replaySpin(capturedRequest, currentTabId)
 
+      // Extract session and gameId for mini-game playback (FIX: was undefined)
+      let currentSession = ''
+      let currentGameId = 190 // Default
+      try {
+        const bodyObj = JSON.parse(capturedRequest.body)
+        const params = JSON.parse(bodyObj.params)
+        currentSession = params.session || ''
+        currentGameId = params.gameId || 190
+      } catch (e) {
+        console.warn('[HOF AutoSpin] Could not extract session/gameId for mini-games')
+      }
+
       // Check stop flag immediately after spin
       if (shouldStop || !isActive) {
         await finalizeStop()
@@ -637,7 +649,7 @@ const AutoSpin = (() => {
                 stats.freeSpinBonuses++ // Increment bonus count
                 stats.freeSpinWins += miniGameResult.totalWin // Add free spin winnings
                 stats.freeSpinsPlayed += miniGameData.spins // Track total free spins played
-                stats.totalWins += miniGameResult.totalWin // Add to main wins counter
+                // FIX: Don't add to totalWins - server balance already includes this
 
                 self.Logger.log(
                   'MINIGAME',
@@ -654,7 +666,7 @@ const AutoSpin = (() => {
                 stats.starSpinBonuses++ // Increment star bonus count
                 stats.starSpinWins += miniGameResult.totalWin // Add star spin winnings
                 stats.starSpinsPlayed += miniGameData.spins // Track total star spins played
-                stats.totalWins += miniGameResult.totalWin // Add to main wins counter
+                // FIX: Don't add to totalWins - server balance already includes this
 
                 self.Logger.log(
                   'MINIGAME',
@@ -667,8 +679,8 @@ const AutoSpin = (() => {
                   },
                 )
               } else {
-                // Add to main wins counter for other mini-game types
-                stats.totalWins += miniGameResult.totalWin
+                // FIX: Don't add to totalWins - server balance already includes this
+                // Just log the win for informational purposes
                 self.Logger.log('MINIGAME', `✅ Won: ${miniGameResult.totalWin.toLocaleString()}`, {
                   totalWin: miniGameResult.totalWin,
                 })
@@ -684,38 +696,10 @@ const AutoSpin = (() => {
           stats.startBalance = balance - spinWin
         }
 
-        // DEBUG: Track balance changes after bonuses
-        if (stats.freeSpinWins > 0 || stats.starSpinWins > 0) {
-          console.log(
-            '%c[DEBUG] Balance AFTER bonuses:',
-            'background:#4caf50;color:white;padding:2px 6px',
-            {
-              currentBalance: balance.toLocaleString(),
-              balanceChange: (balance - stats.startBalance).toLocaleString(),
-              freeSpinWins: stats.freeSpinWins.toLocaleString(),
-              starSpinWins: stats.starSpinWins.toLocaleString(),
-              totalBonusWins: (stats.freeSpinWins + stats.starSpinWins).toLocaleString(),
-            },
-          )
-          console.log(
-            '%c[DEBUG] DOUBLE-COUNT CHECK:',
-            'background:#ff9800;color:white;font-weight:bold;padding:2px 6px',
-            {
-              question: 'Does balance change include bonus wins?',
-              balanceChange: balance - stats.startBalance,
-              totalBonusWins: stats.freeSpinWins + stats.starSpinWins,
-              ratio:
-                stats.freeSpinWins + stats.starSpinWins > 0
-                  ? (
-                      (balance - stats.startBalance) /
-                      (stats.freeSpinWins + stats.starSpinWins)
-                    ).toFixed(2)
-                  : 'N/A',
-              interpretation:
-                'If ratio ≈ 1.0, bonuses ARE in balance (double-count). If ratio » 1.0, bonuses NOT in balance (correct).',
-            },
-          )
-        }
+        // FIX: Removed debug logging for double-count checks
+        // Server balance already includes all wins (main + bonuses)
+        // stats.totalWins tracks main spin wins only
+        // stats.freeSpinWins and stats.starSpinWins are for informational display
 
         // Update stats
         stats.totalSpins++
