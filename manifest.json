@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "House of Fun Helper",
-  "version": "2.8.1",
+  "version": "3.0.0",
   "description": "A helpful extension for House of Fun players",
 
   "icons": {
@@ -17,8 +17,27 @@
   "content_scripts": [
     {
       "matches": ["*://*.houseoffun.com/*"],
-      "js": ["content/content.js"],
+      "js": [
+        "content/ui/utils.js",
+        "content/ui/notifications.js",
+        "content/ui/panel.js",
+        "content/ui/tabs.js",
+        "content/ui/main-spin-stats.js",
+        "content/ui/main-spin.js",
+        "content/ui/dog-spin.js",
+        "content/ui/history-view.js",
+        "content/ui/debug-tracking.js",
+        "content/ui/debug-view.js",
+        "content/content.js"
+      ],
       "run_at": "document_end"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["content/ui/styles.css", "content/ui/styles-components.css"],
+      "matches": ["*://*.houseoffun.com/*"]
     }
   ],
 

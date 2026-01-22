@@ -1,0 +1,475 @@
+/**
+ * House of Fun Helper - Base Styles
+ * Variables, animations, panel, header, tabs, inputs, buttons, stats
+ */
+
+/* ============================================
+   CSS VARIABLES - Design Tokens
+   ============================================ */
+:root {
+  --hof-bg-panel: linear-gradient(160deg, rgba(20, 20, 40, 0.98) 0%, rgba(12, 12, 28, 0.99) 100%);
+  --hof-bg-glass: rgba(255, 255, 255, 0.04);
+  --hof-bg-glass-hover: rgba(255, 255, 255, 0.08);
+  --hof-bg-header: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+  --hof-accent-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --hof-accent-success: linear-gradient(135deg, #00c853 0%, #00a844 100%);
+  --hof-accent-danger: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  --hof-accent-warning: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  --hof-accent-info: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  --hof-text-primary: #ffffff;
+  --hof-text-secondary: #b0b8c8;
+  --hof-text-muted: #6b7280;
+  --hof-text-accent: #667eea;
+  --hof-color-gold: #ffd700;
+  --hof-color-profit: #00ff88;
+  --hof-color-loss: #ff6b6b;
+  --hof-color-cyan: #4ecdc4;
+  --hof-color-pink: #ff79c6;
+  --hof-border-subtle: rgba(255, 255, 255, 0.08);
+  --hof-border-accent: rgba(102, 126, 234, 0.4);
+  --hof-shadow-panel: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --hof-shadow-button: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --hof-shadow-glow: 0 0 30px rgba(102, 126, 234, 0.25);
+  --hof-radius-sm: 8px;
+  --hof-radius-md: 12px;
+  --hof-radius-lg: 16px;
+  --hof-radius-xl: 20px;
+  --hof-transition-fast: 0.15s ease;
+  --hof-transition-normal: 0.25s ease;
+  --hof-transition-slow: 0.4s ease;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes hof-slideIn {
+  from {
+    transform: translateX(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes hof-fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes hof-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+@keyframes hof-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+  }
+}
+
+/* ============================================
+   PANEL CONTAINER
+   ============================================ */
+#hof-panel {
+  position: fixed !important;
+  bottom: 20px !important;
+  left: 20px !important;
+  width: 320px !important;
+  max-height: calc(100vh - 40px) !important;
+  background: var(--hof-bg-panel) !important;
+  border-radius: var(--hof-radius-xl) !important;
+  box-shadow: var(--hof-shadow-panel) !important;
+  font-family:
+    'Segoe UI',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Roboto',
+    sans-serif !important;
+  font-size: 13px !important;
+  color: var(--hof-text-primary) !important;
+  z-index: 2147483647 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: hof-slideIn 0.4s var(--hof-transition-slow);
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+#hof-panel .hof-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  background: var(--hof-bg-header);
+  border-bottom: 1px solid var(--hof-border-subtle);
+  flex-shrink: 0;
+}
+#hof-panel .hof-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#hof-panel .hof-logo {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+#hof-panel .hof-title {
+  font-weight: 700;
+  font-size: 16px;
+  background: var(--hof-accent-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.3px;
+}
+#hof-panel .hof-header-actions {
+  display: flex;
+  gap: 8px;
+}
+#hof-panel .hof-header-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hof-bg-glass);
+  border: 1px solid var(--hof-border-subtle);
+  border-radius: var(--hof-radius-sm);
+  color: var(--hof-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all var(--hof-transition-fast);
+}
+#hof-panel .hof-header-btn:hover {
+  background: var(--hof-bg-glass-hover);
+  color: var(--hof-text-primary);
+  border-color: var(--hof-border-accent);
+}
+
+/* ============================================
+   CONTENT & TABS
+   ============================================ */
+#hof-panel .hof-content {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+#hof-panel .hof-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+#hof-panel .hof-tab {
+  flex: 1;
+  padding: 10px 8px;
+  background: var(--hof-bg-glass);
+  border: 1px solid var(--hof-border-subtle);
+  border-radius: var(--hof-radius-md);
+  color: var(--hof-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--hof-transition-fast);
+  text-align: center;
+}
+#hof-panel .hof-tab:hover {
+  background: var(--hof-bg-glass-hover);
+  color: var(--hof-text-primary);
+}
+#hof-panel .hof-tab.active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.2));
+  border-color: var(--hof-border-accent);
+  color: var(--hof-text-primary);
+  font-weight: 600;
+}
+
+/* ============================================
+   STATUS INDICATOR
+   ============================================ */
+#hof-panel .hof-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: var(--hof-bg-glass);
+  border-radius: var(--hof-radius-md);
+}
+#hof-panel .hof-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--hof-text-muted);
+  transition: all var(--hof-transition-normal);
+}
+#hof-panel .hof-status-dot.active {
+  background: #00c853;
+  box-shadow: 0 0 10px rgba(0, 200, 83, 0.6);
+  animation: hof-pulse 2s infinite;
+}
+#hof-panel .hof-status-text {
+  color: var(--hof-text-secondary);
+  font-size: 12px;
+}
+
+/* ============================================
+   SETTINGS / INPUTS
+   ============================================ */
+#hof-panel .hof-settings {
+  margin-bottom: 16px;
+}
+#hof-panel .hof-setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hof-border-subtle);
+}
+#hof-panel .hof-setting-row:last-child {
+  border-bottom: none;
+}
+#hof-panel .hof-setting-label {
+  color: var(--hof-text-secondary);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#hof-panel .hof-input {
+  width: 60px;
+  padding: 8px 10px;
+  background: var(--hof-bg-glass);
+  border: 1px solid var(--hof-border-subtle);
+  border-radius: var(--hof-radius-sm);
+  color: var(--hof-text-primary);
+  font-size: 13px;
+  text-align: center;
+  transition: all var(--hof-transition-fast);
+}
+#hof-panel .hof-input:focus {
+  outline: none;
+  border-color: var(--hof-text-accent);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+#hof-panel .hof-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#hof-panel .hof-input-separator {
+  color: var(--hof-text-muted);
+  font-size: 12px;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+#hof-panel .hof-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: var(--hof-radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--hof-transition-fast);
+  width: 100%;
+}
+#hof-panel .hof-btn:hover {
+  transform: translateY(-2px);
+}
+#hof-panel .hof-btn:active {
+  transform: translateY(0);
+}
+#hof-panel .hof-btn-start {
+  background: var(--hof-accent-success);
+  color: white;
+  box-shadow: 0 4px 20px rgba(0, 200, 83, 0.35);
+}
+#hof-panel .hof-btn-start:hover {
+  box-shadow: 0 6px 25px rgba(0, 200, 83, 0.5);
+}
+#hof-panel .hof-btn-stop {
+  background: var(--hof-accent-danger);
+  color: white;
+  box-shadow: 0 4px 20px rgba(244, 67, 54, 0.35);
+}
+#hof-panel .hof-btn-stop:hover {
+  box-shadow: 0 6px 25px rgba(244, 67, 54, 0.5);
+}
+#hof-panel .hof-btn-secondary {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--hof-bg-glass);
+  border: 1px solid var(--hof-border-subtle);
+  color: var(--hof-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+#hof-panel .hof-btn-secondary:hover {
+  background: var(--hof-bg-glass-hover);
+  color: var(--hof-text-primary);
+  border-color: var(--hof-border-accent);
+}
+#hof-panel .hof-btn-icon {
+  padding: 8px 14px;
+  background: var(--hof-bg-glass);
+  border: none;
+  border-radius: var(--hof-radius-sm);
+  color: var(--hof-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--hof-transition-fast);
+}
+#hof-panel .hof-btn-icon:hover {
+  background: var(--hof-bg-glass-hover);
+  color: var(--hof-text-primary);
+}
+#hof-panel .hof-btn-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+#hof-panel .hof-btn-danger {
+  background: var(--hof-accent-danger);
+  color: white;
+  margin-top: 12px;
+}
+
+/* ============================================
+   STATS BOX
+   ============================================ */
+#hof-panel .hof-stats-box {
+  background: var(--hof-bg-glass);
+  border: 1px solid var(--hof-border-subtle);
+  border-radius: var(--hof-radius-md);
+  padding: 14px;
+  margin-top: 14px;
+}
+#hof-panel .hof-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+#hof-panel .hof-stat-row:not(:last-child) {
+  border-bottom: 1px solid var(--hof-border-subtle);
+}
+#hof-panel .hof-stat-label {
+  color: var(--hof-text-secondary);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#hof-panel .hof-stat-value {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--hof-color-cyan);
+}
+#hof-panel .hof-stat-value.gold {
+  color: var(--hof-color-gold);
+}
+#hof-panel .hof-stat-value.profit {
+  color: var(--hof-color-profit);
+}
+#hof-panel .hof-stat-value.loss {
+  color: var(--hof-color-loss);
+}
+#hof-panel .hof-stat-value.pink {
+  color: var(--hof-color-pink);
+}
+
+/* Profit section */
+#hof-panel .hof-profit-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 2px solid var(--hof-border-accent);
+}
+#hof-panel .hof-profit-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+}
+#hof-panel .hof-profit-label {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--hof-text-primary);
+}
+#hof-panel .hof-profit-value {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* Bonus breakdown */
+#hof-panel .hof-bonus-box {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--hof-radius-sm);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+#hof-panel .hof-bonus-title {
+  color: var(--hof-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Game info */
+#hof-panel .hof-game-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  border: 1px solid var(--hof-border-accent);
+  border-radius: var(--hof-radius-md);
+}
+#hof-panel .hof-game-label {
+  color: var(--hof-text-secondary);
+  font-size: 12px;
+}
+#hof-panel .hof-game-name {
+  color: var(--hof-text-primary);
+  font-weight: 600;
+  font-size: 12px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Last spin */
+#hof-panel .hof-last-spin {
+  text-align: center;
+  padding: 8px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--hof-text-muted);
+}
