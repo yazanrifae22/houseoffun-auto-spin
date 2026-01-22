@@ -150,6 +150,52 @@
     }
   }
 
+  /**
+   * Get game name from localStorage using gameId
+   */
+  function getGameNameFromLocalStorage(gameId) {
+    if (!gameId) return 'Unknown Game'
+
+    try {
+      const rawData = localStorage.getItem('CRequestSGCSGame')
+      if (!rawData) {
+        console.log('[HOF Helper] CRequestSGCSGame not found in localStorage')
+        return `Game #${gameId}`
+      }
+
+      const parsed = JSON.parse(rawData)
+      // Check for games in top level or inside content (User confirmed logic: parsed.content.games)
+      const games = parsed.content?.games || parsed.games || []
+
+      console.log('[HOF Helper] LocalStorage Lookup:', {
+        gameId,
+        hasGames: games.length > 0,
+        gamesCount: games.length,
+      })
+
+      // Handle both array format and object/key-value
+      let foundGame = null
+
+      if (Array.isArray(games)) {
+        foundGame = games.find((g) => g.gameId == gameId)
+      } else {
+        // Fallback if structure is object with keys
+        foundGame = Object.values(games).find((g) => g.gameId == gameId)
+      }
+
+      if (foundGame) {
+        console.log('[HOF Helper] Found game:', foundGame.name || foundGame.description)
+        return foundGame.name || foundGame.description || `Game #${gameId}`
+      } else {
+        console.log('[HOF Helper] Game ID not found in list')
+      }
+    } catch (e) {
+      console.warn('[HOF Helper] Error fetching game name:', e)
+    }
+
+    return `Game #${gameId}`
+  }
+
   function updateProgress(data) {
     const el = document.getElementById('hof-live-stats')
     if (!el) return
@@ -183,6 +229,12 @@
     }
 
     el.innerHTML = `
+      <div class="hof-stat-row" style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.1);">
+        <span>🎮 Game</span>
+        <span class="hof-stat-value" style="color:#fff;max-width:150px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;">
+          ${getGameNameFromLocalStorage(data.stats.currentGameId)}
+        </span>
+      </div>
       <div class="hof-stat-row">
         <span>🎰 Spins</span>
         <span class="hof-stat-value">${data.stats.totalSpins}</span>

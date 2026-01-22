@@ -110,6 +110,7 @@ const AutoSpin = (() => {
       starSpinBonuses: 0, // Number of star spin bonuses triggered
       starSpinWins: 0, // Total winnings from star spins
       starSpinsPlayed: 0, // Total star spins played
+      currentGameId: null, // Current game ID
     }
 
     console.log('%c[HOF AutoSpin] 🚀 STARTED', 'background:blue;color:white;font-size:16px')
@@ -504,6 +505,9 @@ const AutoSpin = (() => {
         const params = JSON.parse(bodyObj.params)
         currentSession = params.session || ''
         currentGameId = params.gameId || 190
+
+        // Update stats with current game ID
+        stats.currentGameId = currentGameId
       } catch (e) {
         console.warn('[HOF AutoSpin] Could not extract session/gameId for mini-games')
       }
@@ -839,7 +843,9 @@ const AutoSpin = (() => {
             spinNumber: stats.totalSpins,
             spinWin: spinWin,
             bonusDetails: bonusDetails,
+            bonusDetails: bonusDetails,
             stats: stats,
+            gameId: stats.currentGameId, // Explicitly pass gameId
           })
         }
       }
