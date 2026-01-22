@@ -117,6 +117,7 @@ const AutoSpin = (() => {
 
   /**
    * Play bonus spins automatically using bonusToken
+   * New flow: Check for chained bonus FIRST, then spinsCountdown
    */
   async function playBonusSpins(bonusToken, expectedSpins, capturedRequest, tabId) {
     if (!capturedRequest) {
@@ -131,7 +132,8 @@ const AutoSpin = (() => {
 
     let bonusSpinCount = 0
     let totalBonusWin = 0
-    let spinsRemaining = expectedSpins
+    let activeBonusToken = bonusToken // Active token that may be swapped
+    let keepLooping = true
 
     // Parse original request to get session and gameId
     const originalBody = JSON.parse(capturedRequest.body)
@@ -139,17 +141,19 @@ const AutoSpin = (() => {
     const session = params.session
     const gameId = params.gameId || 190
 
-    // Loop until all bonus spins are done
-    while (spinsRemaining > 0 && isActive && !shouldStop) {
+    // Loop until no more spins or chained bonuses
+    while (keepLooping && isActive && !shouldStop) {
       bonusSpinCount++
       stats.freeSpinsPlayed++ // Track total free spins played
 
-      console.log(`[HOF AutoSpin] Bonus spin ${bonusSpinCount}/${expectedSpins}...`)
+      console.log(
+        `[HOF AutoSpin] Bonus spin ${bonusSpinCount} (token: ${activeBonusToken.substring(0, 12)}...)`,
+      )
 
       try {
-        // Call bonus game endpoint
+        // Call bonus game endpoint with current active token
         const result = await sendBonusGameRequest(
-          bonusToken,
+          activeBonusToken,
           session,
           gameId,
           capturedRequest,
@@ -161,49 +165,91 @@ const AutoSpin = (() => {
           const bonusGamePlay = gameInfo.bonusGamePlay
 
           if (bonusGamePlay) {
-            spinsRemaining = bonusGamePlay.spinsCountdown || 0
-            // Fix: Use bonusWin or totalWin, NOT gameWin (which is always 0)
+            // Extract win from this spin
             const spinWin = bonusGamePlay.bonusWin || bonusGamePlay.totalWin || 0
             totalBonusWin += spinWin
 
             console.log(
-              `[HOF AutoSpin] Bonus spin ${bonusSpinCount}: Won ${spinWin.toLocaleString()}, Remaining: ${spinsRemaining}`,
+              `[HOF AutoSpin] Bonus spin ${bonusSpinCount}: Won ${spinWin.toLocaleString()}`,
             )
 
             // Update stats
             stats.totalWins += spinWin
             stats.freeSpinWins += spinWin // Track free spin wins separately
 
-            // Check if ANOTHER bonus was triggered during this bonus spin
+            // ========================================
+            // STEP 1 (CRITICAL): Check for CHAINED bonus FIRST
+            // ========================================
+            let chainedBonusDetected = false
+            let newBonusToken = null
+            let newBonusSpins = 0
+
+            // Check location 1: gameInfo.bonus (most common)
             if (
               gameInfo.bonus &&
               gameInfo.bonus.type === 'freeSpins' &&
               gameInfo.bonus.bonusToken
             ) {
+              chainedBonusDetected = true
+              newBonusToken = gameInfo.bonus.bonusToken
+              newBonusSpins = gameInfo.bonus.init?.spinsAmount || 0
               console.log(
-                '%c[HOF AutoSpin] 🎁 NEW BONUS triggered during bonus! Will play after current bonus completes.',
+                '%c[HOF AutoSpin] 🔗 CHAINED BONUS detected in gameInfo.bonus!',
                 'background:#ff1744;color:white;font-weight:bold;padding:4px',
               )
-              // Store the new bonus to play after current
-              return {
-                spinsPlayed: bonusSpinCount,
-                totalWin: totalBonusWin,
-                newBonusTriggered: true,
-                newBonusToken: gameInfo.bonus.bonusToken,
-                newBonusSpins: gameInfo.bonus.init?.spinsAmount || 0,
-              }
+            }
+            // Check location 2: bonusGamePlay.bonus (alternative location)
+            else if (
+              bonusGamePlay.bonus &&
+              bonusGamePlay.bonus.type === 'freeSpins' &&
+              bonusGamePlay.bonus.bonusToken
+            ) {
+              chainedBonusDetected = true
+              newBonusToken = bonusGamePlay.bonus.bonusToken
+              newBonusSpins = bonusGamePlay.bonus.init?.spinsAmount || 0
+              console.log(
+                '%c[HOF AutoSpin] 🔗 CHAINED BONUS detected in bonusGamePlay.bonus!',
+                'background:#ff1744;color:white;font-weight:bold;padding:4px',
+              )
+            }
+
+            // If chained bonus found → SWITCH token and continue loop immediately
+            if (chainedBonusDetected) {
+              console.log(
+                `%c[HOF AutoSpin] ⚡ Switching to new bonus: ${newBonusSpins} spins with new token`,
+                'background:#ff9800;color:white;font-weight:bold;padding:4px',
+              )
+              activeBonusToken = newBonusToken
+              stats.freeSpinBonuses++ // Increment bonus count for chained bonus
+              // Continue loop with new token (don't check countdown)
+              continue
+            }
+
+            // ========================================
+            // STEP 2: No chain detected → Check spinsCountdown
+            // ========================================
+            const spinsCountdown = bonusGamePlay.spinsCountdown || 0
+            console.log(`[HOF AutoSpin] Spins remaining: ${spinsCountdown}`)
+
+            if (spinsCountdown > 0) {
+              // More spins left, continue loop
+              continue
+            } else {
+              // spinsCountdown == 0 → Exit bonus loop
+              console.log('[HOF AutoSpin] Bonus countdown reached 0, exiting bonus mode')
+              keepLooping = false
             }
           } else {
             console.warn('[HOF AutoSpin] No bonusGamePlay in response, assuming bonus ended')
-            break
+            keepLooping = false
           }
         } else {
           console.error('[HOF AutoSpin] Invalid bonus spin response')
-          break
+          keepLooping = false
         }
       } catch (err) {
         console.error('[HOF AutoSpin] Bonus spin error:', err)
-        break
+        keepLooping = false
       }
 
       // Small delay between bonus spins (same speed as normal spins)
@@ -389,36 +435,7 @@ const AutoSpin = (() => {
               'background:#4caf50;color:white;font-weight:bold;padding:4px 8px',
             )
 
-            // DEBUG: Log bonus result details
-            console.log(
-              '%c[DEBUG] Bonus result:',
-              'background:#2196f3;color:white;padding:2px 6px',
-              {
-                spinsPlayed: bonusResult.spinsPlayed,
-                totalWin: bonusResult.totalWin,
-              },
-            )
-
-            // Check if a new bonus was triggered during the bonus
-            while (bonusResult?.newBonusTriggered) {
-              console.log(
-                '%c[HOF AutoSpin] 🔁 CHAINED BONUS - Starting next bonus...',
-                'background:#ff9800;color:white;font-weight:bold;padding:4px 8px',
-              )
-
-              // Play the new bonus
-              bonusResult = await playBonusSpins(
-                bonusResult.newBonusToken,
-                bonusResult.newBonusSpins,
-                capturedRequest,
-                currentTabId,
-              )
-
-              console.log(
-                '%c[HOF AutoSpin] ✅ CHAINED BONUS COMPLETED',
-                'background:#4caf50;color:white;font-weight:bold;padding:4px 8px',
-              )
-            }
+            // Note: Chained bonuses are now handled automatically within playBonusSpins()
           } catch (err) {
             console.error('[HOF AutoSpin] Bonus play error:', err)
           }
@@ -689,7 +706,10 @@ const AutoSpin = (() => {
               totalBonusWins: stats.freeSpinWins + stats.starSpinWins,
               ratio:
                 stats.freeSpinWins + stats.starSpinWins > 0
-                  ? ((balance - stats.startBalance) / (stats.freeSpinWins + stats.starSpinWins)).toFixed(2)
+                  ? (
+                      (balance - stats.startBalance) /
+                      (stats.freeSpinWins + stats.starSpinWins)
+                    ).toFixed(2)
                   : 'N/A',
               interpretation:
                 'If ratio ≈ 1.0, bonuses ARE in balance (double-count). If ratio » 1.0, bonuses NOT in balance (correct).',
