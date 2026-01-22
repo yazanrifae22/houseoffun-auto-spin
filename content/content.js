@@ -150,17 +150,28 @@
     }
   }
 
+  // Cache for game names to avoid repeated localStorage lookups
+  const gameNameCache = new Map()
+
   /**
-   * Get game name from localStorage using gameId
+   * Get game name from localStorage using gameId (with caching)
    */
   function getGameNameFromLocalStorage(gameId) {
     if (!gameId) return 'Unknown Game'
+
+    // Check cache first
+    if (gameNameCache.has(gameId)) {
+      return gameNameCache.get(gameId)
+    }
+
+    let gameName = `Game #${gameId}`
 
     try {
       const rawData = localStorage.getItem('CRequestSGCSGame')
       if (!rawData) {
         console.log('[HOF Helper] CRequestSGCSGame not found in localStorage')
-        return `Game #${gameId}`
+        gameNameCache.set(gameId, gameName)
+        return gameName
       }
 
       const parsed = JSON.parse(rawData)
@@ -185,7 +196,7 @@
 
       if (foundGame) {
         console.log('[HOF Helper] Found game:', foundGame.name || foundGame.description)
-        return foundGame.name || foundGame.description || `Game #${gameId}`
+        gameName = foundGame.name || foundGame.description || `Game #${gameId}`
       } else {
         console.log('[HOF Helper] Game ID not found in list')
       }
@@ -193,7 +204,9 @@
       console.warn('[HOF Helper] Error fetching game name:', e)
     }
 
-    return `Game #${gameId}`
+    // Cache the result
+    gameNameCache.set(gameId, gameName)
+    return gameName
   }
 
   function updateProgress(data) {
